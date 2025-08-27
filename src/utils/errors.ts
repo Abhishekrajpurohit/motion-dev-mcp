@@ -180,3 +180,19 @@ export function handleError(error: unknown): MCPError {
     details: { error: String(error) }
   };
 }
+
+/**
+ * Create a code generation error
+ */
+export function createGenerationError(component: string, message: string): MotionMCPError {
+  return new MotionMCPError(
+    `Generation failed for ${component}: ${message}`,
+    ErrorCodes.GENERATION_ERROR,
+    500,
+    { component }
+  );
+}
+
+export function createError(code: string, message: string, details?: Record<string, any>): MotionMCPError {
+  return new MotionMCPError(message, code, 500, details);
+}

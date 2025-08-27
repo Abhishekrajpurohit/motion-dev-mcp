@@ -190,3 +190,14 @@ export interface ValidationError {
   rule: string;
   fix?: string;
 }
+
+export interface DocumentResponse {
+  url: string;
+  title: string;
+  content: string;
+  framework: Framework;
+  category: DocumentationCategory;
+  lastModified: string;
+  cacheControl?: string;
+  etag?: string;
+}

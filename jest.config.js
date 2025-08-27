@@ -26,9 +26,9 @@ module.exports = {
       statements: 90
     }
   },
-  moduleNameMapping: {
-    '^(\\.{1,2}/.*)\\.js$': '$1'
-  },
+  modulePathIgnorePatterns: ['<rootDir>/dist/'],
+  extensionsToTreatAsEsm: ['.ts'],
+  setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
   verbose: true,
   testTimeout: 30000 // 30 second timeout for integration tests
 };
