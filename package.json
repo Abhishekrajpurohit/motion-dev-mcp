@@ -1,0 +1,64 @@
+{
+  "name": "motion-dev-mcp",
+  "version": "1.0.0",
+  "description": "A Model Context Protocol (MCP) server that provides AI assistants with comprehensive access to Motion.dev animation library documentation, code examples, and best practices. This server enables LLMs to generate Motion animations for React, JavaScript, and Vue with proper documentation backing.",
+  "main": "dist/index.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "format": "prettier --write src/**/*.ts"
+  },
+  "keywords": [
+    "mcp",
+    "motion",
+    "animation",
+    "react",
+    "vue",
+    "javascript",
+    "ai",
+    "claude"
+  ],
+  "author": "Abhishek Rajpurohit <abhishekrajpuohit@gmail.com>",
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+    "@babel/core": "^7.28.3",
+    "@babel/generator": "^7.28.3",
+    "@babel/parser": "^7.28.3",
+    "@babel/template": "^7.27.2",
+    "@babel/traverse": "^7.28.3",
+    "@babel/types": "^7.28.2",
+    "@modelcontextprotocol/sdk": "^1.17.4",
+    "@types/node": "^24.3.0",
+    "cheerio": "^1.1.2",
+    "fuse.js": "^7.1.0",
+    "node-fetch": "^3.3.2",
+    "recast": "^0.23.11",
+    "ts-node": "^10.9.2",
+    "turndown": "^7.2.1",
+    "typescript": "^5.9.2",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/babel__core": "^7.20.5",
+    "@types/babel__generator": "^7.27.0",
+    "@types/babel__parser": "^7.0.0",
+    "@types/babel__template": "^7.4.4",
+    "@types/babel__traverse": "^7.28.0",
+    "@types/jest": "^30.0.0",
+    "@types/turndown": "^5.0.5",
+    "@typescript-eslint/eslint-plugin": "^8.41.0",
+    "@typescript-eslint/parser": "^8.41.0",
+    "eslint": "^9.34.0",
+    "jest": "^30.1.0",
+    "prettier": "^3.6.2"
+  }
+}
