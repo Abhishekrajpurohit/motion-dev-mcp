@@ -1,7 +1,7 @@
 # Motion.dev MCP Server
 
 ## Overview
-A Model Context Protocol (MCP) server that provides AI assistants with comprehensive access to Motion.dev animation library documentation, code examples, and best practices. This server enables LLMs to generate Motion animations for React, JavaScript, and Vue with proper documentation backing.
+A Model Context Protocol (MCP) server that provides AI assistants with comprehensive access to Motion.dev animation library documentation, code examples, and best practices. This server uses a SQLite-based offline documentation system, similar to n8n-mcp, enabling LLMs to generate Motion animations for React, JavaScript, and Vue with proper documentation backing.
 
 ## Project Structure
 ```
@@ -11,15 +11,29 @@ motion-dev-mcp/
 ├── package.json          # Dependencies and scripts
 ├── tsconfig.json         # TypeScript configuration
 ├── src/
-│   ├── index.ts         # Main MCP server entry point
-│   ├── docs/            # Documentation fetcher and parser
-│   ├── tools/           # MCP tools for code generation
-│   ├── resources/       # MCP resources for documentation access
-│   └── types/           # TypeScript type definitions
-└── docs/               # Cached documentation
+│   ├── index.ts           # Main MCP server entry point
+│   ├── database/          # SQLite database adapters and repositories
+│   ├── services/          # Documentation processing services
+│   ├── scripts/           # Rebuild and maintenance scripts
+│   ├── tools/             # MCP tools for code generation
+│   ├── resources/         # MCP resources for documentation access
+│   └── types/             # TypeScript type definitions
+└── docs/                  # SQLite database storage
 ```
 
 ## Key Features
+
+### 🎯 SQLite-Based Documentation System
+- **Offline Storage**: All Motion.dev documentation stored locally in SQLite
+- **Full-Text Search**: FTS5 search across all documentation when supported
+- **Fast Queries**: No internet dependency after initial population
+- **Structured Data**: Organized docs, components, and examples by framework
+
+### 📥 Documentation Rebuild System
+- **Automated Fetching**: Downloads all Motion.dev documentation
+- **Smart Parsing**: Extracts components, examples, and API references
+- **Multi-Framework**: React, JavaScript, and Vue documentation
+- **Progress Tracking**: Detailed statistics and validation reporting
 
 ### 🎯 Documentation Access
 - **React Documentation**: Complete Motion for React (prev Framer Motion) docs
@@ -52,20 +66,19 @@ motion-dev-mcp/
 
 ## Technology Stack
 
-### Framework Choice: FastMCP
-Using **FastMCP** (https://github.com/punkpeye/fastmcp) for rapid development:
-- ✅ Production-ready with 700+ GitHub stars
-- ✅ TypeScript-first development
-- ✅ Built-in authentication support
-- ✅ Streaming responses and SSE transport
-- ✅ Session management for client contexts
+### Database System
+- **SQLite**: Primary database using better-sqlite3 with sql.js fallback
+- **FTS5**: Full-text search when supported, LIKE search fallback
+- **Schema**: Structured tables for docs, components, and examples
+- **Caching**: Intelligent caching with TTL and compression
+- **Migrations**: Schema versioning and safe updates
 
-### Alternative: MCP Framework
-Backup option: **MCP Framework** (https://github.com/QuantGeekDev/mcp-framework):
-- ✅ Automatic directory-based discovery
-- ✅ Multiple transport support (stdio, SSE, HTTP)
-- ✅ JWT and API Key authentication
-- ✅ Full type safety
+### MCP Protocol
+- **Official SDK**: @modelcontextprotocol/sdk for TypeScript
+- **Tools**: 10+ tools for documentation access and code generation
+- **Resources**: 5 resources for framework-specific documentation
+- **Streaming**: Efficient handling of large documentation responses
+- **Error Handling**: Comprehensive error types and graceful fallbacks
 
 ## Motion.dev Documentation Endpoints
 
@@ -119,17 +132,32 @@ Based on sitemap analysis, key endpoints include:
 
 ### Quick Start
 ```bash
-# Clone or create the project
+# Clone the project
 cd /path/to/claudeui/mcp/motion-dev-mcp
 
 # Install dependencies
-npm install fastmcp @types/node typescript
+npm install
 
-# Initialize FastMCP project
-npx create-fastmcp-server motion-dev
+# Build the project
+npm run build
 
-# Start development
-npm run dev
+# Rebuild documentation database (first time setup)
+npm run rebuild
+
+# Start the MCP server
+node dist/index.js
+```
+
+### Documentation Rebuild
+```bash
+# Rebuild all Motion.dev documentation
+npm run rebuild
+
+# Check database statistics
+npm run stats
+
+# Custom database path
+MOTION_DB_PATH=./custom/path/docs.db npm run rebuild
 ```
 
 ### MCP Client Configuration
@@ -154,16 +182,14 @@ Add to your Claude Code configuration:
 3. Create basic MCP resources
 4. Set up TypeScript configuration
 
-### Phase 2: Documentation Integration  
-1. Parse Motion.dev sitemap endpoints
-2. Implement documentation fetching tools:
-   - `get_motion_docs` - Fetch docs by URL with caching
-   - `search_motion_docs` - Full-text search across docs
-   - `get_component_api` - Component API extraction
-   - `get_examples_by_category` - Example code retrieval
-3. Create resource handlers for each framework
-4. Add search and filtering capabilities
-5. Implement documentation caching and indexing
+### Phase 2: SQLite Documentation System
+1. Design and implement SQLite database schema
+2. Create database adapter with better-sqlite3/sql.js fallback
+3. Build Motion repository for CRUD operations
+4. Implement documentation fetching and parsing service
+5. Create rebuild script for downloading all documentation
+6. Add FTS5 full-text search with LIKE fallback
+7. Implement MCP tools for documentation access
 
 ### Phase 3: Code Generation Tools
 1. Build Motion component generators
@@ -332,5 +358,95 @@ This MCP server directly supports the ClaudeUI project goals:
 
 ---
 
-**Status**: 🚧 Planning Phase  
-**Next Steps**: Initialize FastMCP project structure and implement documentation fetcher
+**Status**: ✅ Production Ready  
+**Next Steps**: Deploy to Claude Code and integrate with ClaudeUI agents
+
+## SQLite Database Architecture
+
+### Database Schema
+The system uses a comprehensive SQLite schema:
+
+```sql
+-- Documentation pages
+CREATE TABLE motion_docs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  url TEXT UNIQUE NOT NULL,
+  title TEXT NOT NULL,
+  framework TEXT NOT NULL CHECK (framework IN ('react', 'js', 'vue')),
+  category TEXT,
+  description TEXT,
+  content TEXT NOT NULL,
+  examples TEXT, -- JSON array
+  api_reference TEXT, -- JSON object
+  tags TEXT, -- JSON array
+  last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Motion components and functions
+CREATE TABLE motion_components (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  framework TEXT NOT NULL,
+  type TEXT NOT NULL CHECK (type IN ('component', 'function', 'hook', 'utility')),
+  description TEXT,
+  props TEXT, -- JSON object
+  methods TEXT, -- JSON object
+  examples TEXT, -- JSON array
+  related_docs_id INTEGER,
+  FOREIGN KEY (related_docs_id) REFERENCES motion_docs(id)
+);
+
+-- Code examples
+CREATE TABLE motion_examples (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT NOT NULL,
+  description TEXT,
+  framework TEXT NOT NULL,
+  category TEXT,
+  code TEXT NOT NULL,
+  tags TEXT, -- JSON array
+  difficulty TEXT CHECK (difficulty IN ('beginner', 'intermediate', 'advanced')),
+  related_docs_id INTEGER,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (related_docs_id) REFERENCES motion_docs(id)
+);
+```
+
+### Rebuild Process
+
+1. **Initialize Database**: Create SQLite file with schema and FTS5 tables
+2. **Fetch Documentation**: Download all React, JavaScript, and Vue docs
+3. **Parse Content**: Extract HTML, convert to Markdown, identify components
+4. **Store Data**: Save structured data with proper relationships
+5. **Generate Examples**: Create framework-specific code examples
+6. **Build Indexes**: Create FTS5 search indexes for fast queries
+7. **Validate**: Check data integrity and provide statistics
+
+### Performance Features
+
+- **Connection Pooling**: Efficient database connection management
+- **Prepared Statements**: SQL injection protection and performance
+- **FTS5 Search**: Lightning-fast full-text search when available
+- **Indexed Queries**: Optimized queries for common access patterns
+- **Batch Operations**: Efficient bulk insertions during rebuild
+- **Error Recovery**: Graceful handling of network and parsing errors
+
+### Database Operations
+
+```typescript
+// Search documentation
+const docs = repository.searchDocs('spring animation', {
+  framework: 'react',
+  limit: 10
+});
+
+// Get component API
+const component = repository.getComponent('motion.div', 'react');
+
+// Find examples by category
+const examples = repository.getExamplesByCategory('animations', 'vue');
+
+// Get statistics
+const stats = repository.getStatistics();
+// Returns: { totalDocs, totalComponents, totalExamples, frameworkCounts, hasFTS5 }
+```

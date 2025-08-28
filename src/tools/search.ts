@@ -5,15 +5,9 @@
 
 import Fuse from 'fuse.js';
 import { DocumentationEndpoint, CategorizedEndpoints, Framework, DocumentationCategory } from '../types/motion.js';
+import { SearchMotionDocsParams } from './documentation.js';
 import { logger } from '../utils/logger.js';
 import { MotionMCPError, createValidationError } from '../utils/errors.js';
-
-export interface SearchMotionDocsParams {
-  query: string;
-  framework?: Framework | 'general';
-  category?: DocumentationCategory;
-  limit?: number;
-}
 
 export interface SearchResult {
   endpoint: DocumentationEndpoint;

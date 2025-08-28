@@ -12,9 +12,7 @@ import {
   ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 
-import { DocumentationFetcher } from './docs/fetcher.js';
-import { DocumentationCache } from './docs/cache.js';
-import { SitemapProcessor } from './docs/sitemap.js';
+import { MotionDocService } from './services/motion-doc-service.js';
 import { DocumentationTool } from './tools/documentation.js';
 import { SearchTool } from './tools/search.js';
 import { ExamplesTool } from './tools/examples.js';
@@ -34,23 +32,10 @@ import {
   validateGetComponentApiParams,
   validateGetExamplesByCategoryParams
 } from './utils/validators.js';
-import { 
-  DocumentationEndpoint,
-  CategorizedEndpoints
-} from './types/motion.js';
 
 export class MotionMCPServer {
   private server: Server;
-  private fetcher: DocumentationFetcher;
-  private cache: DocumentationCache;
-  private sitemapProcessor: SitemapProcessor;
-  private endpoints: DocumentationEndpoint[] = [];
-  private categorizedEndpoints: CategorizedEndpoints = {
-    react: [],
-    js: [],
-    vue: [],
-    general: []
-  };
+  private docService: MotionDocService;
 
   // Tools
   private documentationTool: DocumentationTool;
@@ -64,12 +49,15 @@ export class MotionMCPServer {
   private examplesLibraryManager: ExamplesLibraryManager;
   private bestPracticesManager: BestPracticesManager;
 
-  constructor() {
+  private isInitialized = false;
+  private logger = logger;
+
+  constructor(dbPath: string = 'docs/motion-docs.db') {
     this.server = new Server(
       {
         name: 'motion-dev-mcp',
         version: '1.0.0',
-        description: 'Model Context Protocol server for Motion.dev animation library'
+        description: 'Model Context Protocol server for Motion.dev animation library with SQLite backend'
       },
       {
         capabilities: {
@@ -79,15 +67,14 @@ export class MotionMCPServer {
       }
     );
 
-    this.fetcher = new DocumentationFetcher();
-    this.cache = new DocumentationCache();
-    this.sitemapProcessor = new SitemapProcessor();
+    // Initialize documentation service
+    this.docService = new MotionDocService(undefined, undefined, dbPath);
 
-    // Initialize tools
-    this.documentationTool = new DocumentationTool(this.fetcher, this.cache);
+    // Initialize tools with doc service
+    this.documentationTool = new DocumentationTool(this.docService);
     this.searchTool = new SearchTool();
-    this.examplesTool = new ExamplesTool(this.fetcher);
-    this.apiTool = new ApiTool(this.fetcher);
+    this.examplesTool = new ExamplesTool(this.docService);
+    this.apiTool = new ApiTool(this.docService);
     this.codeGenerationTool = new CodeGenerationTool();
 
     // Initialize resources
@@ -635,23 +622,16 @@ export class MotionMCPServer {
     logger.info('Initializing Motion.dev MCP Server...');
 
     try {
-      // Initialize cache
-      await this.cache.initialize();
-      
-      // Load sitemap and endpoints
-      await this.loadDocumentationEndpoints();
-      
-      // Update tools and resources with loaded data
-      this.updateToolsAndResources();
+      // Ensure database is initialized and populated
+      await this.ensureInitialized();
       
       // Start server
       const transport = new StdioServerTransport();
       await this.server.connect(transport);
       
-      logger.info('Motion.dev MCP Server initialized successfully', {
-        totalEndpoints: this.endpoints.length,
-        byFramework: this.sitemapProcessor.getFrameworkCounts(this.endpoints)
-      });
+      // Get database statistics for logging
+      const stats = this.docService.getStatistics();
+      logger.info('Motion.dev MCP Server initialized successfully', stats);
 
     } catch (error) {
       logger.error('Failed to start MCP server', error as Error);
@@ -664,6 +644,7 @@ export class MotionMCPServer {
     
     try {
       await this.server.close();
+      this.docService.close();
       logger.info('MCP Server shutdown completed');
     } catch (error) {
       logger.error('Error during server shutdown', error as Error);
@@ -671,100 +652,28 @@ export class MotionMCPServer {
     }
   }
 
-  private updateToolsAndResources(): void {
-    // Update tools with endpoint data
-    this.searchTool.updateEndpoints(this.endpoints);
-    this.searchTool.updateCategorizedEndpoints(this.categorizedEndpoints);
-    this.examplesTool.updateEndpoints(this.endpoints);
-    this.apiTool.updateEndpoints(this.endpoints);
-
-    // Update resources with categorized data
-    this.frameworkDocsManager.updateEndpoints(this.categorizedEndpoints);
-    this.bestPracticesManager.updateEndpoints(this.endpoints);
-
-    // Collect examples for the examples library
-    this.collectExamplesForLibrary();
-
-    logger.debug('Updated all tools and resources with endpoint data');
-  }
-
-  private async collectExamplesForLibrary(): Promise<void> {
+  private async ensureInitialized(): Promise<void> {
+    if (this.isInitialized) return;
+    
+    this.logger.info('Initializing documentation database...');
+    
     try {
-      // Get a sample of examples from various endpoints to populate the library
-      const sampleEndpoints = this.endpoints.slice(0, 10); // Start with a sample
-      const examplePromises = sampleEndpoints.map(async (endpoint) => {
-        try {
-          const response = await this.fetcher.fetchDoc(endpoint.url);
-          return response.success && response.document ? response.document.examples || [] : [];
-        } catch (error) {
-          logger.warn(`Failed to fetch examples from ${endpoint.url}`, { error: (error as Error).message });
-          return [];
-        }
-      });
-
-      const exampleArrays = await Promise.all(examplePromises);
-      const allExamples = exampleArrays.flat();
-
-      this.examplesLibraryManager.updateExamples(allExamples);
-      logger.debug(`Collected ${allExamples.length} examples for library`);
-
-    } catch (error) {
-      logger.warn('Failed to collect examples for library', { error: (error as Error).message });
-    }
-  }
-
-  private async loadDocumentationEndpoints(): Promise<void> {
-    try {
-      // Fetch sitemap
-      const sitemapUrls = await this.fetcher.fetchSitemap();
-      logger.info(`Found ${sitemapUrls.length} URLs in sitemap`);
-
-      // Parse endpoints from sitemap
-      const sitemapXml = await this.getSitemapXml();
-      this.endpoints = await this.sitemapProcessor.parseDocumentationUrls(sitemapXml);
+      // Check if database has content, populate if empty
+      const stats = this.docService.getStatistics();
       
-      // Categorize endpoints by framework
-      this.categorizedEndpoints = this.sitemapProcessor.categorizeEndpoints(this.endpoints);
+      if (stats.totalDocs === 0) {
+        this.logger.info('Database is empty, populating with Motion.dev documentation...');
+        await this.docService.populateDatabase();
+        this.logger.info('Database population completed');
+      } else {
+        this.logger.info('Database already populated', stats);
+      }
       
-      logger.info('Documentation endpoints loaded', {
-        total: this.endpoints.length,
-        react: this.categorizedEndpoints.react.length,
-        js: this.categorizedEndpoints.js.length,
-        vue: this.categorizedEndpoints.vue.length,
-        general: this.categorizedEndpoints.general.length
-      });
-
+      this.isInitialized = true;
     } catch (error) {
-      logger.error('Failed to load documentation endpoints', error as Error);
+      this.logger.error('Failed to initialize documentation database', error as Error);
       throw error;
     }
   }
 
-  private async getSitemapXml(): Promise<string> {
-    const cached = await this.cache.get<string>('sitemap.xml');
-    if (cached) {
-      return cached;
-    }
-
-    // This would normally fetch from the actual sitemap URL
-    // For now, we'll create a mock sitemap with key Motion.dev URLs
-    const mockSitemap = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://motion.dev/docs/react</loc></url>
-  <url><loc>https://motion.dev/docs/react-animation</loc></url>
-  <url><loc>https://motion.dev/docs/react-gestures</loc></url>
-  <url><loc>https://motion.dev/docs/react-layout-animations</loc></url>
-  <url><loc>https://motion.dev/docs/react-scroll-animations</loc></url>
-  <url><loc>https://motion.dev/docs/quick-start</loc></url>
-  <url><loc>https://motion.dev/docs/animate</loc></url>
-  <url><loc>https://motion.dev/docs/scroll</loc></url>
-  <url><loc>https://motion.dev/docs/spring</loc></url>
-  <url><loc>https://motion.dev/docs/vue</loc></url>
-  <url><loc>https://motion.dev/docs/vue-animation</loc></url>
-  <url><loc>https://motion.dev/docs/vue-gestures</loc></url>
-</urlset>`;
-
-    await this.cache.set('sitemap.xml', mockSitemap);
-    return mockSitemap;
-  }
 }

@@ -1,64 +1,60 @@
 /**
  * Code examples retrieval tool implementation
- * Handles filtering and organizing Motion.dev code examples
+ * Handles filtering and organizing Motion.dev code examples with SQLite backend
  */
 
-import { DocumentationFetcher } from '../docs/fetcher.js';
-import { logger } from '../utils/logger.js';
-import { MotionMCPError, createValidationError } from '../utils/errors.js';
-import { 
-  DocumentationEndpoint, 
-  CodeExample, 
-  Framework, 
-  DocumentationCategory
-} from '../types/motion.js';
+import { MotionDocService } from '../services/motion-doc-service';
+import { MotionExample } from '../database/motion-repository';
+import { Logger } from '../utils/logger';
+import { MotionMCPError, createValidationError } from '../utils/errors';
+import { Framework } from '../types/motion';
 
 export interface GetExamplesByCategoryParams {
-  category: DocumentationCategory;
-  framework: Framework;
-  complexity?: 'basic' | 'intermediate' | 'advanced';
+  category: string;
+  framework?: Framework;
+  difficulty?: 'beginner' | 'intermediate' | 'advanced';
   limit?: number;
 }
 
 export interface GetExamplesByCategoryResponse {
   success: boolean;
-  category: DocumentationCategory;
-  framework: Framework;
-  complexity?: string;
-  examples: CodeExample[];
+  category: string;
+  framework?: Framework;
+  difficulty?: string;
+  examples: MotionExample[];
   totalFound: number;
-  fetchTime: number;
+  queryTime: number;
   error?: string;
+}
+
+export interface SearchExamplesParams {
+  query: string;
+  framework?: Framework;
+  category?: string;
+  difficulty?: 'beginner' | 'intermediate' | 'advanced';
+  limit?: number;
 }
 
 export interface ExampleFilter {
   framework?: Framework;
-  category?: DocumentationCategory;
-  complexity?: 'basic' | 'intermediate' | 'advanced';
+  category?: string;
+  difficulty?: 'beginner' | 'intermediate' | 'advanced';
   tags?: string[];
   minLength?: number;
   maxLength?: number;
 }
 
 export class ExamplesTool {
-  private fetcher: DocumentationFetcher;
-  private endpoints: DocumentationEndpoint[] = [];
-  private exampleCache: Map<string, CodeExample[]> = new Map();
+  private docService: MotionDocService;
+  private logger = Logger.getInstance();
 
-  constructor(fetcher: DocumentationFetcher) {
-    this.fetcher = fetcher;
-  }
-
-  updateEndpoints(endpoints: DocumentationEndpoint[]): void {
-    this.endpoints = endpoints;
-    // Clear cache when endpoints change
-    this.exampleCache.clear();
-    logger.debug(`Examples tool updated with ${endpoints.length} endpoints`);
+  constructor(docService: MotionDocService) {
+    this.docService = docService;
   }
 
   async getExamplesByCategory(params: GetExamplesByCategoryParams): Promise<GetExamplesByCategoryResponse> {
     const startTime = Date.now();
-    logger.logToolExecution('get_examples_by_category', params);
+    this.logger.info('get_examples_by_category called', params);
 
     try {
       // Validate parameters
@@ -66,55 +62,34 @@ export class ExamplesTool {
         throw createValidationError('category', params.category, 'Category is required');
       }
 
-      if (!params.framework) {
-        throw createValidationError('framework', params.framework, 'Framework is required');
-      }
-
       if (params.limit && (params.limit < 1 || params.limit > 50)) {
         throw createValidationError('limit', params.limit, 'Limit must be between 1 and 50');
       }
 
-      const limit = params.limit || 5;
+      const limit = params.limit || 20;
 
-      // Find relevant endpoints
-      const relevantEndpoints = this.endpoints.filter(endpoint => 
-        endpoint.framework === params.framework &&
-        endpoint.category === params.category
+      // Get examples from database
+      const examples = await this.docService.getExamplesByCategory(
+        params.category,
+        params.framework
       );
 
-      if (relevantEndpoints.length === 0) {
-        return {
-          success: true,
-          category: params.category,
-          framework: params.framework,
-          complexity: params.complexity,
-          examples: [],
-          totalFound: 0,
-          fetchTime: Date.now() - startTime
-        };
-      }
-
-      // Collect examples from relevant endpoints
-      const allExamples = await this.collectExamplesFromEndpoints(
-        relevantEndpoints.slice(0, 10) // Limit endpoint fetching to avoid overwhelming
-      );
-
-      // Filter by complexity if specified
-      let filteredExamples = allExamples;
-      if (params.complexity) {
-        filteredExamples = allExamples.filter(example => 
-          example.complexity === params.complexity
+      // Filter by difficulty if specified
+      let filteredExamples = examples;
+      if (params.difficulty) {
+        filteredExamples = examples.filter(example => 
+          example.difficulty === params.difficulty
         );
       }
 
-      // Sort by complexity and title
+      // Sort by difficulty and title
       filteredExamples.sort((a, b) => {
-        const complexityOrder = { basic: 1, intermediate: 2, advanced: 3 };
-        const aComplexity = complexityOrder[a.complexity];
-        const bComplexity = complexityOrder[b.complexity];
+        const difficultyOrder = { beginner: 1, intermediate: 2, advanced: 3 };
+        const aDifficulty = difficultyOrder[a.difficulty || 'beginner'];
+        const bDifficulty = difficultyOrder[b.difficulty || 'beginner'];
         
-        if (aComplexity !== bComplexity) {
-          return aComplexity - bComplexity;
+        if (aDifficulty !== bDifficulty) {
+          return aDifficulty - bDifficulty;
         }
         
         return a.title.localeCompare(b.title);
@@ -127,103 +102,98 @@ export class ExamplesTool {
         success: true,
         category: params.category,
         framework: params.framework,
-        complexity: params.complexity,
+        difficulty: params.difficulty,
         examples: limitedExamples,
         totalFound: filteredExamples.length,
-        fetchTime: Date.now() - startTime
+        queryTime: Date.now() - startTime
       };
 
-      logger.logPerformanceMetric('get_examples_by_category', response.fetchTime, 'ms');
-      logger.info(`Retrieved ${response.examples.length} examples for ${params.framework}/${params.category}`);
+      this.logger.info(`Retrieved ${response.examples.length} examples for ${params.framework || 'all'}/${params.category}`);
 
       return response;
 
     } catch (error) {
-      logger.error(`Examples retrieval failed: ${params.category}/${params.framework}`, error as Error);
+      this.logger.error(`Examples retrieval failed: ${params.category}/${params.framework}`, error as Error);
 
       return {
         success: false,
         category: params.category,
         framework: params.framework,
-        complexity: params.complexity,
+        difficulty: params.difficulty,
         examples: [],
         totalFound: 0,
-        fetchTime: Date.now() - startTime,
+        queryTime: Date.now() - startTime,
         error: error instanceof MotionMCPError ? error.message : String(error)
       };
     }
   }
 
-  private async collectExamplesFromEndpoints(endpoints: DocumentationEndpoint[]): Promise<CodeExample[]> {
-    const allExamples: CodeExample[] = [];
-    const fetchPromises = endpoints.map(async (endpoint) => {
-      try {
-        const cacheKey = `examples_${endpoint.url}`;
-        
-        // Check cache first
-        if (this.exampleCache.has(cacheKey)) {
-          return this.exampleCache.get(cacheKey) || [];
-        }
+  async searchExamples(params: SearchExamplesParams): Promise<GetExamplesByCategoryResponse> {
+    const startTime = Date.now();
+    this.logger.info('search_examples called', params);
 
-        // Fetch documentation and extract examples
-        const response = await this.fetcher.fetchDoc(endpoint.url);
-        if (response.success && response.document) {
-          const examples = response.document.examples || [];
-          this.exampleCache.set(cacheKey, examples);
-          return examples;
-        }
-
-        return [];
-      } catch (error) {
-        logger.warn(`Failed to fetch examples from: ${endpoint.url}`, { 
-          error: (error as Error).message 
-        });
-        return [];
-      }
-    });
-
-    const exampleArrays = await Promise.all(fetchPromises);
-    
-    // Flatten and deduplicate
-    for (const examples of exampleArrays) {
-      allExamples.push(...examples);
-    }
-
-    // Remove duplicates based on code content
-    const uniqueExamples = allExamples.filter((example, index, array) => 
-      array.findIndex(e => e.code === example.code) === index
-    );
-
-    return uniqueExamples;
-  }
-
-  async getExamplesByComplexity(
-    complexity: 'basic' | 'intermediate' | 'advanced',
-    framework?: Framework,
-    limit: number = 10
-  ): Promise<CodeExample[]> {
     try {
-      let relevantEndpoints = this.endpoints;
+      const examples = await this.docService.searchExamples(params.query, {
+        framework: params.framework,
+        category: params.category,
+        limit: params.limit || 20
+      });
 
-      if (framework) {
-        relevantEndpoints = relevantEndpoints.filter(
-          endpoint => endpoint.framework === framework
+      // Filter by difficulty if specified
+      let filteredExamples = examples;
+      if (params.difficulty) {
+        filteredExamples = examples.filter(example => 
+          example.difficulty === params.difficulty
         );
       }
 
-      const allExamples = await this.collectExamplesFromEndpoints(
-        relevantEndpoints.slice(0, 15)
-      );
-
-      const complexityExamples = allExamples
-        .filter(example => example.complexity === complexity)
-        .slice(0, limit);
-
-      logger.debug(`Found ${complexityExamples.length} ${complexity} examples`);
-      return complexityExamples;
+      return {
+        success: true,
+        category: params.category || 'search',
+        framework: params.framework,
+        difficulty: params.difficulty,
+        examples: filteredExamples,
+        totalFound: filteredExamples.length,
+        queryTime: Date.now() - startTime
+      };
 
     } catch (error) {
-      logger.error(`Failed to get examples by complexity: ${complexity}`, error as Error);
+      this.logger.error('Examples search failed', error as Error);
+
+      return {
+        success: false,
+        category: params.category || 'search',
+        framework: params.framework,
+        difficulty: params.difficulty,
+        examples: [],
+        totalFound: 0,
+        queryTime: Date.now() - startTime,
+        error: error instanceof MotionMCPError ? error.message : String(error)
+      };
+    }
+  }
+
+  async getExamplesByDifficulty(
+    difficulty: 'beginner' | 'intermediate' | 'advanced',
+    framework?: Framework,
+    limit: number = 10
+  ): Promise<MotionExample[]> {
+    try {
+      // Search for examples with empty query but filter by difficulty and framework
+      const examples = await this.docService.searchExamples('', {
+        framework,
+        limit: limit * 2 // Get more to filter from
+      });
+
+      const difficultyExamples = examples
+        .filter(example => example.difficulty === difficulty)
+        .slice(0, limit);
+
+      this.logger.debug(`Found ${difficultyExamples.length} ${difficulty} examples`);
+      return difficultyExamples;
+
+    } catch (error) {
+      this.logger.error(`Failed to get examples by difficulty: ${difficulty}`, error as Error);
       return [];
     }
   }
@@ -232,39 +202,37 @@ export class ExamplesTool {
     tags: string[], 
     framework?: Framework,
     limit: number = 10
-  ): Promise<CodeExample[]> {
+  ): Promise<MotionExample[]> {
     try {
-      let relevantEndpoints = this.endpoints;
-
-      if (framework) {
-        relevantEndpoints = relevantEndpoints.filter(
-          endpoint => endpoint.framework === framework
-        );
-      }
-
-      const allExamples = await this.collectExamplesFromEndpoints(
-        relevantEndpoints.slice(0, 15)
-      );
+      // Use search with tag keywords
+      const tagQuery = tags.join(' ');
+      const examples = await this.docService.searchExamples(tagQuery, {
+        framework,
+        limit: limit * 2 // Get more to filter from
+      });
 
       // Filter examples that have any of the specified tags
-      const taggedExamples = allExamples.filter(example =>
-        tags.some(tag => 
-          example.tags.some(exampleTag => 
+      const taggedExamples = examples.filter(example => {
+        if (!example.tags) return false;
+        
+        const exampleTags = JSON.parse(example.tags) as string[];
+        return tags.some(tag => 
+          exampleTags.some(exampleTag => 
             exampleTag.toLowerCase().includes(tag.toLowerCase())
           )
-        )
-      ).slice(0, limit);
+        );
+      }).slice(0, limit);
 
-      logger.debug(`Found ${taggedExamples.length} examples with tags: ${tags.join(', ')}`);
+      this.logger.debug(`Found ${taggedExamples.length} examples with tags: ${tags.join(', ')}`);
       return taggedExamples;
 
     } catch (error) {
-      logger.error(`Failed to get examples by tags: ${tags.join(', ')}`, error as Error);
+      this.logger.error(`Failed to get examples by tags: ${tags.join(', ')}`, error as Error);
       return [];
     }
   }
 
-  async filterExamples(examples: CodeExample[], filter: ExampleFilter): Promise<CodeExample[]> {
+  async filterExamples(examples: MotionExample[], filter: ExampleFilter): Promise<MotionExample[]> {
     try {
       let filtered = examples;
 
@@ -273,20 +241,27 @@ export class ExamplesTool {
         filtered = filtered.filter(example => example.framework === filter.framework);
       }
 
-      // Complexity filter
-      if (filter.complexity) {
-        filtered = filtered.filter(example => example.complexity === filter.complexity);
+      // Difficulty filter
+      if (filter.difficulty) {
+        filtered = filtered.filter(example => example.difficulty === filter.difficulty);
       }
 
       // Tags filter
       if (filter.tags && filter.tags.length > 0) {
-        filtered = filtered.filter(example =>
-          filter.tags!.some(tag =>
-            example.tags.some(exampleTag =>
-              exampleTag.toLowerCase().includes(tag.toLowerCase())
-            )
-          )
-        );
+        filtered = filtered.filter(example => {
+          if (!example.tags) return false;
+          
+          try {
+            const exampleTags = JSON.parse(example.tags) as string[];
+            return filter.tags!.some(tag =>
+              exampleTags.some(exampleTag =>
+                exampleTag.toLowerCase().includes(tag.toLowerCase())
+              )
+            );
+          } catch {
+            return false;
+          }
+        });
       }
 
       // Length filters
@@ -301,7 +276,7 @@ export class ExamplesTool {
       return filtered;
 
     } catch (error) {
-      logger.error('Example filtering failed', error as Error);
+      this.logger.error('Example filtering failed', error as Error);
       return examples; // Return original examples if filtering fails
     }
   }
@@ -309,25 +284,27 @@ export class ExamplesTool {
   async getExampleStats(): Promise<{
     totalExamples: number;
     byFramework: Record<Framework, number>;
-    byComplexity: Record<string, number>;
-    byCategory: Record<DocumentationCategory, number>;
+    byDifficulty: Record<string, number>;
+    byCategory: Record<string, number>;
     averageCodeLength: number;
     topTags: Array<{ tag: string; count: number }>;
   }> {
     try {
-      // Collect all examples
-      const allExamples = await this.collectExamplesFromEndpoints(this.endpoints.slice(0, 20));
+      const dbStats = this.docService.getStatistics();
+      
+      // Get all examples for detailed stats
+      const allExamples = await this.docService.searchExamples('', { limit: 1000 });
 
       const stats = {
-        totalExamples: allExamples.length,
+        totalExamples: dbStats.totalExamples,
         byFramework: {} as Record<Framework, number>,
-        byComplexity: {} as Record<string, number>,
-        byCategory: {} as Record<DocumentationCategory, number>,
+        byDifficulty: {} as Record<string, number>,
+        byCategory: {} as Record<string, number>,
         averageCodeLength: 0,
         topTags: [] as Array<{ tag: string; count: number }>
       };
 
-      // Calculate stats
+      // Calculate stats from examples
       let totalCodeLength = 0;
       const tagCounts: Record<string, number> = {};
 
@@ -335,15 +312,28 @@ export class ExamplesTool {
         // Framework counts
         stats.byFramework[example.framework] = (stats.byFramework[example.framework] || 0) + 1;
 
-        // Complexity counts
-        stats.byComplexity[example.complexity] = (stats.byComplexity[example.complexity] || 0) + 1;
+        // Difficulty counts
+        const difficulty = example.difficulty || 'beginner';
+        stats.byDifficulty[difficulty] = (stats.byDifficulty[difficulty] || 0) + 1;
+
+        // Category counts
+        if (example.category) {
+          stats.byCategory[example.category] = (stats.byCategory[example.category] || 0) + 1;
+        }
 
         // Code length
         totalCodeLength += example.code.length;
 
         // Tag counts
-        for (const tag of example.tags) {
-          tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+        if (example.tags) {
+          try {
+            const tags = JSON.parse(example.tags) as string[];
+            for (const tag of tags) {
+              tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+            }
+          } catch {
+            // Ignore parsing errors
+          }
         }
       }
 
@@ -360,12 +350,12 @@ export class ExamplesTool {
       return stats;
 
     } catch (error) {
-      logger.error('Failed to calculate example stats', error as Error);
+      this.logger.error('Failed to calculate example stats', error as Error);
       return {
         totalExamples: 0,
         byFramework: {} as Record<Framework, number>,
-        byComplexity: {},
-        byCategory: {} as Record<DocumentationCategory, number>,
+        byDifficulty: {},
+        byCategory: {} as Record<string, number>,
         averageCodeLength: 0,
         topTags: []
       };
@@ -373,26 +363,25 @@ export class ExamplesTool {
   }
 
   async getFrameworkSpecificExamples(framework: Framework): Promise<{
-    basic: CodeExample[];
-    intermediate: CodeExample[];
-    advanced: CodeExample[];
+    beginner: MotionExample[];
+    intermediate: MotionExample[];
+    advanced: MotionExample[];
   }> {
     try {
-      const frameworkEndpoints = this.endpoints.filter(
-        endpoint => endpoint.framework === framework
-      );
-
-      const allExamples = await this.collectExamplesFromEndpoints(frameworkEndpoints);
+      const allExamples = await this.docService.searchExamples('', {
+        framework,
+        limit: 100
+      });
 
       return {
-        basic: allExamples.filter(e => e.complexity === 'basic').slice(0, 5),
-        intermediate: allExamples.filter(e => e.complexity === 'intermediate').slice(0, 5),
-        advanced: allExamples.filter(e => e.complexity === 'advanced').slice(0, 5)
+        beginner: allExamples.filter(e => e.difficulty === 'beginner').slice(0, 5),
+        intermediate: allExamples.filter(e => e.difficulty === 'intermediate').slice(0, 5),
+        advanced: allExamples.filter(e => e.difficulty === 'advanced').slice(0, 5)
       };
 
     } catch (error) {
-      logger.error(`Failed to get ${framework} examples`, error as Error);
-      return { basic: [], intermediate: [], advanced: [] };
+      this.logger.error(`Failed to get ${framework} examples`, error as Error);
+      return { beginner: [], intermediate: [], advanced: [] };
     }
   }
 }

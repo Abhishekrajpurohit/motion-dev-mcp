@@ -14,7 +14,9 @@
     "test:watch": "jest --watch",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
-    "format": "prettier --write src/**/*.ts"
+    "format": "prettier --write src/**/*.ts",
+    "rebuild": "ts-node src/scripts/rebuild-docs.ts",
+    "rebuild:build": "npm run build && node dist/scripts/rebuild-docs.js"
   },
   "keywords": [
     "mcp",
@@ -38,10 +40,12 @@
     "@babel/types": "^7.28.2",
     "@modelcontextprotocol/sdk": "^1.17.4",
     "@types/node": "^24.3.0",
+    "better-sqlite3": "^11.1.2",
     "cheerio": "^1.1.2",
     "fuse.js": "^7.1.0",
     "node-fetch": "^3.3.2",
     "recast": "^0.23.11",
+    "sql.js": "^1.8.0",
     "ts-node": "^10.9.2",
     "turndown": "^7.2.1",
     "typescript": "^5.9.2",
@@ -53,7 +57,9 @@
     "@types/babel__parser": "^7.0.0",
     "@types/babel__template": "^7.4.4",
     "@types/babel__traverse": "^7.28.0",
+    "@types/better-sqlite3": "^7.6.11",
     "@types/jest": "^30.0.0",
+    "@types/sql.js": "^1.4.9",
     "@types/supertest": "^6.0.3",
     "@types/turndown": "^5.0.5",
     "@typescript-eslint/eslint-plugin": "^8.41.0",
