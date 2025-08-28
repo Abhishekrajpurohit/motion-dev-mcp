@@ -224,7 +224,7 @@ export class ASTTransformer {
     return hasAnimation;
   }
 
-  private hasVueMotionDirectives(node: any): boolean {
+  private hasVueMotionDirectives(_node: any): boolean {
     // Vue motion detection would require Vue SFC parsing
     // For now, return true if context suggests Vue motion usage
     return true;
@@ -455,8 +455,8 @@ export class ASTTransformer {
 
   optimizeForFramework(
     componentAST: ComponentAST,
-    targetFramework: Framework,
-    context: CodeGenerationContext
+    _targetFramework: Framework,
+    _context: CodeGenerationContext
   ): ComponentAST {
     // Convert between frameworks
     return componentAST;

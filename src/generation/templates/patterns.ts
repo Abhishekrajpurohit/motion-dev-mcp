@@ -543,12 +543,12 @@ ${functionName}();`;
       .slice(0, limit);
   }
 
-  getPatternCombinations(patternIds: string[]): {
+  getPatternCombinations(_patternIds: string[]): {
     compatible: boolean;
     conflicts: string[];
     suggestions: string[];
   } {
-    const _patterns = patternIds.map(id => this.getPattern(id)).filter(Boolean) as AnimationPattern[];
+    // const patterns = patternIds.map(id => this.getPattern(id)).filter(Boolean) as AnimationPattern[];
     
     return {
       compatible: true,

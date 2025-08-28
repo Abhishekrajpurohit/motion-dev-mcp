@@ -44,14 +44,14 @@ export interface BestPracticesResource {
 
 export class BestPracticesManager {
   private practices: BestPractice[] = [];
-  private endpoints: DocumentationEndpoint[] = [];
+  // private endpoints: DocumentationEndpoint[] = []; // Reserved for future use
 
   constructor() {
     this.initializeBestPractices();
   }
 
   updateEndpoints(endpoints: DocumentationEndpoint[]): void {
-    this.endpoints = endpoints;
+    // this.endpoints = endpoints; // Reserved for future use
     logger.debug(`Best practices updated with ${endpoints.length} endpoints`);
   }
 

@@ -15,7 +15,7 @@ import {
 import { logger } from '../utils/logger.js';
 
 export class SitemapProcessor {
-  private readonly _baseUrl = 'https://motion.dev';
+  // private readonly baseUrl = 'https://motion.dev'; // Reserved for future use
   
   async parseDocumentationUrls(sitemapXml: string): Promise<DocumentationEndpoint[]> {
     logger.debug('Parsing sitemap XML for documentation URLs');

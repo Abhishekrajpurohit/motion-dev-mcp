@@ -4,7 +4,7 @@
  */
 
 import { DocumentationFetcher } from '../docs/fetcher.js';
-import { DocumentResponse, ParsedDocument } from '../types/motion.js';
+import { ParsedDocument } from '../types/motion.js';
 import { DocumentationCache } from '../docs/cache.js';
 import { logger } from '../utils/logger.js';
 import { MotionMCPError } from '../utils/errors.js';

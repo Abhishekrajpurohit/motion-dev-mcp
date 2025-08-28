@@ -40,12 +40,12 @@ export interface SearchMotionDocsResponse {
 export class SearchTool {
   private fuse: Fuse<DocumentationEndpoint> | null = null;
   private endpoints: DocumentationEndpoint[] = [];
-  private categorizedEndpoints: CategorizedEndpoints = {
-    react: [],
-    js: [],
-    vue: [],
-    general: []
-  };
+  // private categorizedEndpoints: CategorizedEndpoints = { // Reserved for future use
+  //   react: [],
+  //   js: [],
+  //   vue: [],
+  //   general: []
+  // };
 
   constructor() {
     this.initializeFuse();
@@ -76,8 +76,8 @@ export class SearchTool {
     logger.debug(`Search index updated with ${endpoints.length} endpoints`);
   }
 
-  updateCategorizedEndpoints(categorized: CategorizedEndpoints): void {
-    this.categorizedEndpoints = categorized;
+  updateCategorizedEndpoints(_categorized: CategorizedEndpoints): void {
+    // this.categorizedEndpoints = categorized; // Reserved for future use
   }
 
   async searchMotionDocs(params: SearchMotionDocsParams): Promise<SearchMotionDocsResponse> {

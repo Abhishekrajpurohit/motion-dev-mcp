@@ -29,8 +29,9 @@ export class ComponentGenerator {
   }
 
   private generateReactComponent(config: ComponentConfig): string {
-    const imports = ['React'];
-    const motionImports = ['motion'];
+    // Framework-specific imports would be determined dynamically
+    // const imports = ['React'];
+    // const motionImports = ['motion'];
     
     if (config.typescript) {
       return `import React from 'react';

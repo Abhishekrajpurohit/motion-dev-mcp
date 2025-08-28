@@ -15,7 +15,7 @@ export interface BundleOptimization {
 }
 
 export class BundleOptimizer {
-  analyzeCode(code: string, framework: Framework): BundleOptimization[] {
+  analyzeCode(code: string, _framework: Framework): BundleOptimization[] {
     const suggestions: BundleOptimization[] = [];
 
     // Check for default imports that could be tree-shaken
@@ -75,13 +75,13 @@ export class BundleOptimizer {
   private findUnusedImports(code: string): string[] {
     const imports: string[] = [];
     const importRegex = /import\s+\{([^}]+)\}\s+from/g;
-    let match;
+    let match: RegExpExecArray | null;
 
     while ((match = importRegex.exec(code)) !== null) {
       const importList = match[1].split(',').map(i => i.trim());
       importList.forEach(importName => {
         const cleanName = importName.replace(/\s+as\s+\w+/, '').trim();
-        if (!new RegExp(cleanName, 'g').test(code.slice(match.index! + match[0].length))) {
+        if (!new RegExp(cleanName, 'g').test(code.slice(match!.index! + match![0].length))) {
           imports.push(cleanName);
         }
       });
@@ -120,7 +120,7 @@ export class BundleOptimizer {
     // Convert default imports to named imports for better tree-shaking
     return code
       .replace(/import\s+motion\s+from\s+['"]framer-motion['"];?/g, "import { motion } from 'framer-motion';")
-      .replace(/import\s+\{\s*([^}]+)\s*\}\s+from\s+['"]framer-motion['"];?/g, (match, imports) => {
+      .replace(/import\s+\{\s*([^}]+)\s*\}\s+from\s+['"]framer-motion['"];?/g, (_match, imports) => {
         // Remove duplicates and sort alphabetically
         const uniqueImports = [...new Set(imports.split(',').map((i: string) => i.trim()))].sort();
         return `import { ${uniqueImports.join(', ')} } from 'framer-motion';`;
@@ -131,7 +131,7 @@ export class BundleOptimizer {
     // Optimize Vue motion imports
     return code.replace(
       /import\s+\{\s*([^}]+)\s*\}\s+from\s+['"]@vueuse\/motion['"];?/g,
-      (match, imports) => {
+      (_match, imports) => {
         const uniqueImports = [...new Set(imports.split(',').map((i: string) => i.trim()))].sort();
         return `import { ${uniqueImports.join(', ')} } from '@vueuse/motion';`;
       }
@@ -142,7 +142,7 @@ export class BundleOptimizer {
     // Optimize vanilla JavaScript motion imports
     return code.replace(
       /import\s+\{\s*([^}]+)\s*\}\s+from\s+['"]motion['"];?/g,
-      (match, imports) => {
+      (_match, imports) => {
         const uniqueImports = [...new Set(imports.split(',').map((i: string) => i.trim()))].sort();
         return `import { ${uniqueImports.join(', ')} } from 'motion';`;
       }
@@ -204,7 +204,7 @@ export class BundleOptimizer {
     let total = 0;
 
     // Base framework costs (estimated)
-    const baseSizes = {
+    const baseSizes: Record<Framework, Record<string, number>> = {
       react: { motion: 15000, AnimatePresence: 5000, useMotionValue: 3000 },
       vue: { motion: 12000, MotionPlugin: 8000 },
       js: { animate: 8000, scroll: 4000, stagger: 2000 }
@@ -214,8 +214,8 @@ export class BundleOptimizer {
 
     Object.keys(currentFrameworkSizes).forEach(feature => {
       if (code.includes(feature)) {
-        breakdown[feature] = currentFrameworkSizes[feature];
-        total += currentFrameworkSizes[feature];
+        breakdown[feature] = currentFrameworkSizes[feature] as number;
+        total += currentFrameworkSizes[feature] as number;
       }
     });
 

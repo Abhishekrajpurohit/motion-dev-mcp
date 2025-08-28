@@ -10,8 +10,7 @@ import {
   DocumentationEndpoint, 
   CodeExample, 
   Framework, 
-  DocumentationCategory,
-  ParsedDocument 
+  DocumentationCategory
 } from '../types/motion.js';
 
 export interface GetExamplesByCategoryParams {

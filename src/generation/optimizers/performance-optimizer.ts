@@ -14,7 +14,7 @@ export interface OptimizationSuggestion {
 }
 
 export class PerformanceOptimizer {
-  analyzeCode(code: string, framework: Framework): OptimizationSuggestion[] {
+  analyzeCode(code: string, _framework: Framework): OptimizationSuggestion[] {
     const suggestions: OptimizationSuggestion[] = [];
 
     // Check for layout-triggering properties
@@ -50,7 +50,7 @@ export class PerformanceOptimizer {
     return suggestions;
   }
 
-  optimizeCode(code: string, framework: Framework): string {
+  optimizeCode(code: string, _framework: Framework): string {
     let optimizedCode = code;
 
     // Replace layout-triggering properties

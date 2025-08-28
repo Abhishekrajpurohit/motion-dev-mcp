@@ -4,7 +4,7 @@
 
 import { z } from 'zod';
 import { Framework, DocumentationCategory, AnimationType } from '../types/motion.js';
-import { createValidationError, ErrorCodes } from './errors.js';
+import { createValidationError } from './errors.js';
 
 // Framework validation
 export const FrameworkSchema = z.enum(['react', 'js', 'vue']);
@@ -180,11 +180,11 @@ export function validateParams<T>(schema: z.ZodSchema<T>, params: unknown): T {
     return schema.parse(params);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const errorDetails = error.errors.map(err => ({
-        path: err.path.join('.'),
-        message: err.message,
-        received: (err as any).input || 'unknown'
-      }));
+      // const errorDetails = error.errors.map(err => ({ // Reserved for future use
+      //   path: err.path.join('.'),
+      //   message: err.message,
+      //   received: (err as any).input || 'unknown'
+      // }));
       
       throw createValidationError('params', params, error.errors.map(e => e.message).join(', '));
     }

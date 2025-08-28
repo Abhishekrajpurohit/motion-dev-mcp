@@ -62,11 +62,8 @@ export class GracefulShutdownManager {
     });
 
     // Handle unhandled promise rejections
-    process.on('unhandledRejection', (reason, promise) => {
-      logger.error('Unhandled promise rejection, initiating emergency shutdown', { 
-        reason: reason as Error, 
-        promise 
-      });
+    process.on('unhandledRejection', (reason, _promise) => {
+      logger.error('Unhandled promise rejection, initiating emergency shutdown', new Error(String(reason)));
       this.emergencyShutdown('Unhandled promise rejection').catch(() => {
         process.exit(1);
       });

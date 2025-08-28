@@ -10,7 +10,6 @@ import {
   DocumentationEndpoint, 
   ApiReference, 
   Framework, 
-  ParsedDocument,
   CodeExample 
 } from '../types/motion.js';
 

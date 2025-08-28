@@ -26,9 +26,7 @@ import { BestPracticesManager } from './resources/best-practices.js';
 import { logger } from './utils/logger.js';
 import { 
   createToolError, 
-  createValidationError,
-  MotionMCPError,
-  ErrorCodes
+  createValidationError
 } from './utils/errors.js';
 import { 
   validateGetMotionDocsParams,
@@ -38,8 +36,7 @@ import {
 } from './utils/validators.js';
 import { 
   DocumentationEndpoint,
-  CategorizedEndpoints,
-  ParsedDocument
+  CategorizedEndpoints
 } from './types/motion.js';
 
 export class MotionMCPServer {

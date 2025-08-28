@@ -50,11 +50,11 @@ export class PerformanceMonitor {
   private metrics: PerformanceMetric[] = [];
   private requestMetrics: RequestMetrics[] = [];
   private performanceObserver?: PerformanceObserver;
-  private startTime: number;
+  // private startTime: number; // Reserved for future use
   private cpuUsageStart: NodeJS.CpuUsage;
 
   constructor() {
-    this.startTime = Date.now();
+    // this.startTime = Date.now(); // Reserved for future use
     this.cpuUsageStart = process.cpuUsage();
     this.setupPerformanceObserver();
     this.startPeriodicCollection();
@@ -448,7 +448,7 @@ export class PerformanceMonitor {
   reset(): void {
     this.metrics = [];
     this.requestMetrics = [];
-    this.startTime = Date.now();
+    // this.startTime = Date.now(); // Reserved for future use
     this.cpuUsageStart = process.cpuUsage();
     
     logger.info('Performance monitor reset');

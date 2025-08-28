@@ -412,13 +412,13 @@ export class CodeGenerationTool {
 
   private async buildComponentFromPatterns(params: GenerateMotionComponentParams): Promise<string> {
     // Combine multiple animation patterns into a single component
-    const patternConfigs = params.animations.map(animationId => {
-      const pattern = this.patterns.getPattern(animationId);
-      return pattern?.config || {};
-    });
+    // const patternConfigs = params.animations.map(animationId => { // Reserved for future use
+    //   const pattern = this.patterns.getPattern(animationId);
+    //   return pattern?.config || {};
+    // });
 
     // Merge configs intelligently
-    const mergedConfig = this.mergeAnimationConfigs(patternConfigs);
+    // const mergedConfig = this.mergeAnimationConfigs(patternConfigs); // Reserved for future use
 
     // Generate code for the specific framework
     return this.patterns.getPatternCode(params.animations[0], params.framework, params.componentName);
@@ -556,12 +556,12 @@ function runAnimationSequence() {${animationCalls}
 runAnimationSequence();`;
   }
 
-  private async optimizeSequenceCode(code: string, params: CreateAnimationSequenceParams): Promise<string> {
+  private async optimizeSequenceCode(code: string, _params: CreateAnimationSequenceParams): Promise<string> {
     // Apply sequence-specific optimizations
     return code;
   }
 
-  private async convertASTBetweenFrameworks(ast: any, from: Framework, to: Framework): Promise<any> {
+  private async convertASTBetweenFrameworks(ast: any, _from: Framework, _to: Framework): Promise<any> {
     // Framework conversion logic would go here
     // This is a complex transformation that would convert React JSX to Vue templates, etc.
     return ast;
@@ -585,7 +585,7 @@ runAnimationSequence();`;
 
   private async performValidation(
     motionElements: any[], 
-    params: ValidateMotionSyntaxParams
+    _params: ValidateMotionSyntaxParams
   ): Promise<{
     errors: Array<{ type: 'error' | 'warning'; message: string; line?: number; rule: string }>;
     suggestions: Array<{ type: 'performance' | 'accessibility' | 'best-practice'; message: string; priority: 'high' | 'medium' | 'low' }>;
@@ -632,16 +632,16 @@ runAnimationSequence();`;
     return { errors, suggestions };
   }
 
-  private mergeAnimationConfigs(configs: any[]): any {
-    // Intelligently merge multiple animation configurations
-    const merged: any = {};
-    
-    for (const config of configs) {
-      Object.assign(merged, config);
-    }
-
-    return merged;
-  }
+  // private mergeAnimationConfigs(configs: any[]): any { // Reserved for future use
+  //   // Intelligently merge multiple animation configurations
+  //   const merged: any = {};
+  //   
+  //   for (const config of configs) {
+  //     Object.assign(merged, config);
+  //   }
+  // 
+  //   return merged;
+  // }
 
   private determineComplexity(animations: string[]): 'basic' | 'intermediate' | 'advanced' {
     if (animations.length === 1) return 'basic';
@@ -649,7 +649,7 @@ runAnimationSequence();`;
     return 'advanced';
   }
 
-  private async analyzePerformance(code: string, framework: Framework): Promise<{
+  private async analyzePerformance(code: string, _framework: Framework): Promise<{
     score: number;
     suggestions: string[];
   }> {

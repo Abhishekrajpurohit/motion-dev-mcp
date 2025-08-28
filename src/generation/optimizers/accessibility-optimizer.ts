@@ -14,7 +14,7 @@ export interface AccessibilitySuggestion {
 }
 
 export class AccessibilityOptimizer {
-  analyzeCode(code: string, framework: Framework): AccessibilitySuggestion[] {
+  analyzeCode(code: string, _framework: Framework): AccessibilitySuggestion[] {
     const suggestions: AccessibilitySuggestion[] = [];
 
     // Check for reduced motion support

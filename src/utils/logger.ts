@@ -122,7 +122,7 @@ export class Logger {
     duration: number, 
     error?: Error
   ): void {
-    const level = success ? 'info' : 'error';
+    // const level = success ? 'info' : 'error'; // Reserved for future use
     const message = `Tool execution ${success ? 'completed' : 'failed'}: ${toolName}`;
     
     const meta = {
