@@ -3,12 +3,10 @@
  * Converts AST back to formatted code for different frameworks
  */
 
-import * as babel from '@babel/core';
 import { generate } from '@babel/generator';
 import * as prettier from 'prettier';
 import { Framework } from '../../types/motion.js';
 import { logger } from '../../utils/logger.js';
-import { createGenerationError } from '../../utils/errors.js';
 import { 
   ComponentAST, 
   CodeGenerationContext
@@ -124,7 +122,7 @@ export class ASTGenerator {
     return formatted;
   }
 
-  private formatVueCode(code: string, typescript: boolean): string {
+  private formatVueCode(code: string, _typescript: boolean): string {
     // Vue-specific formatting
     let formatted = code;
 
@@ -140,7 +138,7 @@ export class ASTGenerator {
     return formatted;
   }
 
-  private formatJavaScriptCode(code: string, typescript: boolean): string {
+  private formatJavaScriptCode(code: string, _typescript: boolean): string {
     // JavaScript-specific formatting
     let formatted = code;
 
@@ -200,7 +198,7 @@ export class ASTGenerator {
     return context.typescript ? 'typescript' : 'babel';
   }
 
-  private getPrettierOptions(context: CodeGenerationContext) {
+  private getPrettierOptions(_context: CodeGenerationContext) {
     return {
       semi: true,
       singleQuote: true,
@@ -239,7 +237,7 @@ export default ${componentName};`;
   }
 
   generateVueComponent(
-    componentName: string,
+    _componentName: string,
     template: string,
     script: string,
     style: string = '',
@@ -410,12 +408,12 @@ ${this.generateJavaScriptFunction(functionName, body, [], typescript)}`;
     return code;
   }
 
-  private minimizeBundle(code: string, context: CodeGenerationContext): string {
+  private minimizeBundle(code: string, _context: CodeGenerationContext): string {
     // Bundle size optimizations
     return code;
   }
 
-  private addTreeShaking(code: string, context: CodeGenerationContext): string {
+  private addTreeShaking(code: string, _context: CodeGenerationContext): string {
     // Tree shaking optimizations
     return code;
   }

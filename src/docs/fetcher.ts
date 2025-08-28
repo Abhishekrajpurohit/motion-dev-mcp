@@ -21,13 +21,6 @@ import {
 } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
 
-export interface DocumentResponse {
-  success: boolean;
-  document?: ParsedDocument;
-  error?: string;
-  cached: boolean;
-  fetchTime: number;
-}
 
 export class DocumentationFetcher {
   private readonly baseUrl = 'https://motion.dev';
@@ -76,7 +69,7 @@ export class DocumentationFetcher {
       return {
         success: true,
         document,
-        cached: false,
+        url,
         fetchTime
       };
 
@@ -86,7 +79,7 @@ export class DocumentationFetcher {
       return {
         success: false,
         error: error instanceof MotionMCPError ? error.message : String(error),
-        cached: false,
+        url,
         fetchTime: Date.now() - startTime
       };
     }
@@ -192,7 +185,7 @@ export class DocumentationFetcher {
     const examples: CodeExample[] = [];
     let exampleId = 1;
 
-    $('pre code, .code-block, .example').each((index, element) => {
+    $('pre code, .code-block, .example').each((_index, element) => {
       const $el = $(element);
       const code = $el.text().trim();
       
@@ -231,7 +224,7 @@ export class DocumentationFetcher {
     return examples;
   }
 
-  private extractApiReference($: cheerio.CheerioAPI, framework: Framework | 'general'): ApiReference | undefined {
+  private extractApiReference($: cheerio.CheerioAPI, _framework: Framework | 'general'): ApiReference | undefined {
     // Look for API documentation sections
     const apiSection = $('.api-reference, .component-api, .props-table').first();
     if (apiSection.length === 0) return undefined;
@@ -255,11 +248,11 @@ export class DocumentationFetcher {
     }
   }
 
-  private extractPropsFromApiSection($: cheerio.CheerioAPI, apiSection: cheerio.Cheerio): any[] {
+  private extractPropsFromApiSection($: cheerio.CheerioAPI, apiSection: cheerio.Cheerio<any>): any[] {
     const props: any[] = [];
     
     // Try table format first
-    apiSection.find('table tr').each((index, row) => {
+    apiSection.find('table tr').each((index: any, row: any) => {
       if (index === 0) return; // Skip header
       
       const $row = $(row);
@@ -277,7 +270,7 @@ export class DocumentationFetcher {
 
     // Try definition list format if no table
     if (props.length === 0) {
-      apiSection.find('dt').each((index, dt) => {
+      apiSection.find('dt').each((_index: any, dt: any) => {
         const $dt = $(dt);
         const $dd = $dt.next('dd');
         
@@ -328,7 +321,7 @@ export class DocumentationFetcher {
       const $ = cheerio.load(sitemapXml, { xmlMode: true });
       const urls: string[] = [];
       
-      $('url loc').each((index, element) => {
+      $('url loc').each((_index, element) => {
         const url = $(element).text().trim();
         if (url.includes('/docs/')) {
           urls.push(url);
@@ -356,8 +349,8 @@ export class DocumentationFetcher {
   }
 
   private extractTagsFromContext(
-    $: cheerio.CheerioAPI, 
-    element: cheerio.Cheerio,
+    _$: cheerio.CheerioAPI, 
+    element: cheerio.Cheerio<any>,
     framework: Framework | 'general'
   ): string[] {
     const tags: string[] = [];

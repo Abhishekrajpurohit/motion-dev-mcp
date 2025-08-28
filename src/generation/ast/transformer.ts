@@ -83,18 +83,18 @@ export class ASTTransformer {
       {
         name: 'accessibility-enhancements',
         description: 'Add accessibility attributes and reduced motion support',
-        condition: (node, context) => 
+        condition: (_node, context) => 
           context.optimization?.accessibility === true,
-        transform: (node, context) => this.addAccessibilityEnhancements(node, context)
+        transform: (_node, context) => this.addAccessibilityEnhancements(_node, context)
       },
 
       // Performance optimizations
       {
         name: 'performance-optimizations',
         description: 'Apply performance optimizations to motion components',
-        condition: (node, context) => 
+        condition: (_node, context) => 
           context.optimization?.performance === true,
-        transform: (node, context) => this.applyPerformanceOptimizations(node, context)
+        transform: (_node, context) => this.applyPerformanceOptimizations(_node, context)
       }
     ];
   }
@@ -121,7 +121,7 @@ export class ASTTransformer {
       plugins: [
         () => ({
           visitor: {
-            Program(path) {
+            Program: (path: any) => {
               if (rule.condition(path.node, context)) {
                 const transformed = rule.transform(path.node, context);
                 if (Array.isArray(transformed)) {
@@ -175,7 +175,7 @@ export class ASTTransformer {
 
   private applyVueTransforms(
     componentAST: ComponentAST, 
-    context: CodeGenerationContext
+    _context: CodeGenerationContext
   ): ComponentAST {
     // Add Vue-specific optimizations
     return componentAST;
@@ -183,7 +183,7 @@ export class ASTTransformer {
 
   private applyJavaScriptTransforms(
     componentAST: ComponentAST, 
-    context: CodeGenerationContext
+    _context: CodeGenerationContext
   ): ComponentAST {
     // Add JavaScript-specific optimizations
     return componentAST;
@@ -198,7 +198,7 @@ export class ASTTransformer {
         const openingElement = path.node.openingElement;
         if (t.isJSXMemberExpression(openingElement.name) &&
             t.isIdentifier(openingElement.name.object) &&
-            openingElement.name.object.name === 'motion') {
+            (openingElement.name.object as any).name === 'motion') {
           hasMotion = true;
           path.stop();
         }
@@ -240,14 +240,14 @@ export class ASTTransformer {
         const openingElement = path.node.openingElement;
         if (t.isJSXMemberExpression(openingElement.name) &&
             t.isIdentifier(openingElement.name.object) &&
-            openingElement.name.object.name === 'motion') {
+            (openingElement.name.object as any).name === 'motion') {
           imports.add('motion');
         }
       },
       
       JSXAttribute(path) {
         if (t.isIdentifier(path.node.name)) {
-          const attrName = path.node.name.name;
+          const attrName = (path.node.name as any).name;
           if (attrName === 'initial' || attrName === 'animate' || attrName === 'exit') {
             imports.add('motion');
           }
@@ -333,7 +333,8 @@ export class ASTTransformer {
   }
 
   // Optimization methods
-  private addAccessibilityEnhancements(node: any, context: CodeGenerationContext): any {
+  private addAccessibilityEnhancements(node: any, _context: CodeGenerationContext): any {
+    const self = this;
     babel.traverse(node, {
       JSXElement(path) {
         const openingElement = path.node.openingElement;
@@ -341,16 +342,16 @@ export class ASTTransformer {
         // Add reduced motion check for motion elements
         if (t.isJSXMemberExpression(openingElement.name) &&
             t.isIdentifier(openingElement.name.object) &&
-            openingElement.name.object.name === 'motion') {
+            (openingElement.name.object as any).name === 'motion') {
           
           // Add aria-label if not present and element is interactive
           const hasAriaLabel = openingElement.attributes.some(attr =>
             t.isJSXAttribute(attr) && 
             t.isIdentifier(attr.name) && 
-            attr.name.name === 'aria-label'
+            (attr.name as any).name === 'aria-label'
           );
 
-          if (!hasAriaLabel && this.isInteractiveElement(openingElement)) {
+          if (!hasAriaLabel && self.isInteractiveElement(openingElement)) {
             openingElement.attributes.push(
               t.jsxAttribute(
                 t.jsxIdentifier('aria-label'),
@@ -365,21 +366,31 @@ export class ASTTransformer {
     return node;
   }
 
-  private applyPerformanceOptimizations(node: any, context: CodeGenerationContext): any {
+  private isInteractiveElement(openingElement: any): boolean {
+    const elementName = openingElement.name;
+    if (t.isJSXIdentifier(elementName)) {
+      const tagName = elementName.name.toLowerCase();
+      return ['button', 'a', 'input', 'select', 'textarea'].includes(tagName);
+    }
+    return false;
+  }
+
+  private applyPerformanceOptimizations(node: any, _context: CodeGenerationContext): any {
     // Add will-change optimization
+    const self = this;
     babel.traverse(node, {
       JSXElement(path) {
         const openingElement = path.node.openingElement;
         
         if (t.isJSXMemberExpression(openingElement.name) &&
             t.isIdentifier(openingElement.name.object) &&
-            openingElement.name.object.name === 'motion') {
+            (openingElement.name.object as any).name === 'motion') {
           
           // Check if element has transform animations
           const hasTransformAnimation = openingElement.attributes.some(attr =>
             t.isJSXAttribute(attr) && 
             t.isIdentifier(attr.name) && 
-            ['animate', 'initial', 'whileHover'].includes(attr.name.name)
+            ['animate', 'initial', 'whileHover'].includes((attr.name as any).name)
           );
 
           if (hasTransformAnimation) {
@@ -387,10 +398,10 @@ export class ASTTransformer {
             const hasLayoutRoot = openingElement.attributes.some(attr =>
               t.isJSXAttribute(attr) && 
               t.isIdentifier(attr.name) && 
-              attr.name.name === 'layoutRoot'
+              (attr.name as any).name === 'layoutRoot'
             );
 
-            if (!hasLayoutRoot && this.shouldAddLayoutRoot(openingElement)) {
+            if (!hasLayoutRoot && self.shouldAddLayoutRoot(openingElement)) {
               openingElement.attributes.push(
                 t.jsxAttribute(
                   t.jsxIdentifier('layoutRoot'),
@@ -406,47 +417,37 @@ export class ASTTransformer {
     return node;
   }
 
+  private shouldAddLayoutRoot(openingElement: any): boolean {
+    // Add layoutRoot for elements that may trigger layout changes
+    return t.isJSXMemberExpression(openingElement.name) &&
+           t.isIdentifier(openingElement.name.object) &&
+           (openingElement.name.object as any).name === 'motion';
+  }
+
   private addReactPerformanceOptimizations(
     componentAST: ComponentAST, 
-    context: CodeGenerationContext
+    _context: CodeGenerationContext
   ): ComponentAST {
     // This would add React.memo, useCallback, etc.
     // Simplified implementation
     return componentAST;
   }
 
-  // Helper methods
-  private isInteractiveElement(openingElement: t.JSXOpeningElement): boolean {
-    // Check if element has interactive props
-    return openingElement.attributes.some(attr =>
-      t.isJSXAttribute(attr) && 
-      t.isIdentifier(attr.name) && 
-      ['onClick', 'onTap', 'onDrag', 'whileHover', 'whileTap'].includes(attr.name.name)
-    );
-  }
-
-  private shouldAddLayoutRoot(openingElement: t.JSXOpeningElement): boolean {
-    // Check if element should have layoutRoot based on its animations
-    return openingElement.attributes.some(attr =>
-      t.isJSXAttribute(attr) && 
-      t.isIdentifier(attr.name) && 
-      ['layout', 'layoutId'].includes(attr.name.name)
-    );
-  }
+  // Helper methods removed - already defined above
 
   // Public utility methods for motion transformations
   addMotionElement(
     componentAST: ComponentAST, 
-    motionElement: MotionElement,
-    context: CodeGenerationContext
+    _motionElement: MotionElement,
+    _context: CodeGenerationContext
   ): ComponentAST {
     // Add a motion element to the component
     return componentAST;
   }
 
   createAnimationSequence(
-    sequence: AnimationSequence,
-    context: CodeGenerationContext
+    _sequence: AnimationSequence,
+    _context: CodeGenerationContext
   ): any {
     // Create AST nodes for animation sequence
     return null;

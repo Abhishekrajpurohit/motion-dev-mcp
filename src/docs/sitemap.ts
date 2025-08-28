@@ -10,14 +10,12 @@ import {
   DocumentationCategory 
 } from '../types/motion.js';
 import { 
-  createParseError, 
-  MotionMCPError,
-  ErrorCodes 
+  createParseError
 } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
 
 export class SitemapProcessor {
-  private readonly baseUrl = 'https://motion.dev';
+  private readonly _baseUrl = 'https://motion.dev';
   
   async parseDocumentationUrls(sitemapXml: string): Promise<DocumentationEndpoint[]> {
     logger.debug('Parsing sitemap XML for documentation URLs');
@@ -26,7 +24,7 @@ export class SitemapProcessor {
       const $ = cheerio.load(sitemapXml, { xmlMode: true });
       const endpoints: DocumentationEndpoint[] = [];
       
-      $('url loc').each((index, element) => {
+      $('url loc').each((_index, element) => {
         const url = $(element).text().trim();
         
         // Only process documentation URLs

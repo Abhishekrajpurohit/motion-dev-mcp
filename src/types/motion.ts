@@ -192,12 +192,16 @@ export interface ValidationError {
 }
 
 export interface DocumentResponse {
+  success: boolean;
+  document?: ParsedDocument;
+  error?: string;
+  fetchTime?: number;
   url: string;
-  title: string;
-  content: string;
-  framework: Framework;
-  category: DocumentationCategory;
-  lastModified: string;
+  title?: string;
+  content?: string;
+  framework?: Framework;
+  category?: DocumentationCategory;
+  lastModified?: string;
   cacheControl?: string;
   etag?: string;
 }

@@ -6,9 +6,7 @@ import { promises as fs } from 'fs';
 import { join, dirname } from 'path';
 import { CacheMetadata } from '../types/mcp.js';
 import { 
-  MotionMCPError, 
-  createCacheError, 
-  ErrorCodes 
+  createCacheError
 } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
 

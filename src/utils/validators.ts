@@ -183,7 +183,7 @@ export function validateParams<T>(schema: z.ZodSchema<T>, params: unknown): T {
       const errorDetails = error.errors.map(err => ({
         path: err.path.join('.'),
         message: err.message,
-        received: err.input
+        received: (err as any).input || 'unknown'
       }));
       
       throw createValidationError('params', params, error.errors.map(e => e.message).join(', '));

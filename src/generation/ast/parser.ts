@@ -102,14 +102,14 @@ export class ASTParser {
 
     babel.traverse(ast, {
       // Function declarations
-      FunctionDeclaration(path) {
+      FunctionDeclaration: (path) => {
         if (this.isReactComponent(path.node, framework)) {
           componentName = path.node.id?.name || componentName;
         }
       },
       
       // Arrow functions assigned to variables
-      VariableDeclarator(path) {
+      VariableDeclarator: (path) => {
         if (t.isArrowFunctionExpression(path.node.init) || 
             t.isFunctionExpression(path.node.init)) {
           if (t.isIdentifier(path.node.id) && 
@@ -120,14 +120,14 @@ export class ASTParser {
       },
 
       // Class components
-      ClassDeclaration(path) {
+      ClassDeclaration: (path) => {
         if (this.isReactComponent(path.node, framework)) {
           componentName = path.node.id?.name || componentName;
         }
       },
 
       // Export default
-      ExportDefaultDeclaration(path) {
+      ExportDefaultDeclaration: (path) => {
         if (t.isIdentifier(path.node.declaration)) {
           componentName = path.node.declaration.name;
         } else if (t.isFunctionDeclaration(path.node.declaration)) {
@@ -166,7 +166,7 @@ export class ASTParser {
     const imports: ImportDeclaration[] = [];
 
     babel.traverse(ast, {
-      ImportDeclaration(path) {
+      ImportDeclaration: (path) => {
         const importDecl: ImportDeclaration = {
           source: path.node.source.value,
           specifiers: []
@@ -205,14 +205,14 @@ export class ASTParser {
     const exports: ExportDeclaration[] = [];
 
     babel.traverse(ast, {
-      ExportDefaultDeclaration(path) {
+      ExportDefaultDeclaration: (path) => {
         exports.push({
           type: 'default',
           declaration: this.getExportDeclarationName(path.node.declaration)
         });
       },
 
-      ExportNamedDeclaration(path) {
+      ExportNamedDeclaration: (path) => {
         if (path.node.specifiers.length > 0) {
           exports.push({
             type: 'named',
@@ -293,14 +293,14 @@ export class ASTParser {
     }> = [];
 
     babel.traverse(ast, {
-      JSXElement(path) {
+      JSXElement: (path) => {
         const openingElement = path.node.openingElement;
         if (t.isJSXMemberExpression(openingElement.name)) {
           // motion.div, motion.span, etc.
           if (t.isIdentifier(openingElement.name.object) && 
-              openingElement.name.object.name === 'motion') {
+              (openingElement.name.object as any).name === 'motion') {
             const elementType = t.isIdentifier(openingElement.name.property) 
-              ? openingElement.name.property.name 
+              ? (openingElement.name.property as any).name 
               : 'div';
             
             const props: Record<string, any> = {};
@@ -308,7 +308,7 @@ export class ASTParser {
             for (const attr of openingElement.attributes) {
               if (t.isJSXAttribute(attr) && t.isIdentifier(attr.name)) {
                 const value = this.extractJSXAttributeValue(attr.value);
-                props[attr.name.name] = value;
+                props[(attr.name as any).name] = value;
               }
             }
 
@@ -323,7 +323,7 @@ export class ASTParser {
 
       // For Vue: v-motion directive
       // For JS: animate() function calls
-      CallExpression(path) {
+      CallExpression: (path) => {
         if (t.isIdentifier(path.node.callee) && path.node.callee.name === 'animate') {
           // JavaScript animate() calls
           motionElements.push({

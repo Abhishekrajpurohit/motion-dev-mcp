@@ -3,11 +3,11 @@
  * Handles fetching and parsing Motion.dev documentation
  */
 
-import { DocumentationFetcher, DocumentResponse } from '../docs/fetcher.js';
+import { DocumentationFetcher } from '../docs/fetcher.js';
+import { DocumentResponse, ParsedDocument } from '../types/motion.js';
 import { DocumentationCache } from '../docs/cache.js';
 import { logger } from '../utils/logger.js';
 import { MotionMCPError } from '../utils/errors.js';
-import { ParsedDocument } from '../types/motion.js';
 
 export interface GetMotionDocsParams {
   url: string;
@@ -58,14 +58,14 @@ export class DocumentationTool {
         await this.cache.set(params.url, response.document);
       }
 
-      logger.logPerformanceMetric('get_motion_docs_fresh', response.fetchTime, 'ms');
+      logger.logPerformanceMetric('get_motion_docs_fresh', response.fetchTime || 0, 'ms');
       
       return {
         success: response.success,
         document: response.document,
         error: response.error,
         cached: false,
-        fetchTime: response.fetchTime
+        fetchTime: response.fetchTime || 0
       };
 
     } catch (error) {

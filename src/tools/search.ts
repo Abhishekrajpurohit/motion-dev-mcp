@@ -52,7 +52,7 @@ export class SearchTool {
   }
 
   private initializeFuse(): void {
-    const fuseOptions: Fuse.IFuseOptions<DocumentationEndpoint> = {
+    const fuseOptions: any = {
       keys: [
         { name: 'title', weight: 0.6 },
         { name: 'url', weight: 0.3 },
@@ -130,7 +130,7 @@ export class SearchTool {
           matches: result.matches?.map(match => ({
             field: match.key || '',
             value: match.value || '',
-            indices: match.indices || []
+            indices: match.indices?.map(index => [index[0], index[1]] as [number, number]) || []
           })) || []
         }));
 
@@ -239,7 +239,17 @@ export class SearchTool {
     searchCapabilities: string[];
   }> {
     const byFramework: Record<string, number> = {};
-    const byCategory: Record<DocumentationCategory, number> = {};
+    const byCategory: Record<DocumentationCategory, number> = {
+      'animation': 0,
+      'gestures': 0,
+      'layout-animations': 0,
+      'scroll-animations': 0,
+      'components': 0,
+      'api-reference': 0,
+      'guides': 0,
+      'examples': 0,
+      'best-practices': 0
+    };
 
     for (const endpoint of this.endpoints) {
       byFramework[endpoint.framework] = (byFramework[endpoint.framework] || 0) + 1;

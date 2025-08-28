@@ -182,7 +182,12 @@ export class FrameworkDocsManager {
       general: this.categorizedEndpoints.general.length
     };
 
-    const categoryBreakdown: Record<Framework | 'general', Record<string, number>> = {};
+    const categoryBreakdown: Record<Framework | 'general', Record<string, number>> = {
+      react: {},
+      js: {},
+      vue: {},
+      general: {}
+    };
     
     for (const [framework, endpoints] of Object.entries(this.categorizedEndpoints)) {
       categoryBreakdown[framework as Framework | 'general'] = {};

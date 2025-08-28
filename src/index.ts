@@ -5,8 +5,8 @@
  * Entry point for the Model Context Protocol server providing Motion.dev capabilities
  */
 
-import { MotionMCPServer } from './server.js';
-import { logger } from './utils/logger.js';
+import { MotionMCPServer } from './server';
+import { logger } from './utils/logger';
 
 async function main(): Promise<void> {
   try {
@@ -66,4 +66,4 @@ if (require.main === module) {
   });
 }
 
-export { MotionMCPServer } from './server.js';
+export { MotionMCPServer } from './server';

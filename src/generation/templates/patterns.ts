@@ -3,7 +3,7 @@
  * Common animation patterns that can be applied across frameworks
  */
 
-import { Framework, AnimationType } from '../../types/motion.js';
+import { Framework } from '../../types/motion.js';
 
 export interface AnimationPattern {
   id: string;
@@ -167,9 +167,11 @@ export class AnimationPatterns {
       tags: ['drag', 'elastic', 'constraints'],
       config: {
         gestures: {
-          drag: true,
-          dragConstraints: { left: -100, right: 100, top: -100, bottom: 100 },
-          dragElastic: 0.2
+          drag: {
+            enabled: true,
+            constraints: { left: -100, right: 100, top: -100, bottom: 100 },
+            elastic: 0.2
+          }
         },
         transition: { type: 'spring', stiffness: 300, damping: 30 }
       },
@@ -418,7 +420,7 @@ ${props}
 export default ${componentName};`;
   }
 
-  private generateVueCode(pattern: AnimationPattern, componentName: string): string {
+  private generateVueCode(pattern: AnimationPattern, _componentName: string): string {
     const directives = this.generateVueDirectives(pattern);
     
     return `<template>
@@ -452,7 +454,7 @@ ${animationCode}
 ${functionName}();`;
   }
 
-  private getRequiredImports(pattern: AnimationPattern, framework: Framework): string {
+  private getRequiredImports(pattern: AnimationPattern, _framework: Framework): string {
     const imports = new Set(['motion']);
     
     if (pattern.usage.dependencies.includes('AnimatePresence')) {
@@ -546,7 +548,7 @@ ${functionName}();`;
     conflicts: string[];
     suggestions: string[];
   } {
-    const patterns = patternIds.map(id => this.getPattern(id)).filter(Boolean) as AnimationPattern[];
+    const _patterns = patternIds.map(id => this.getPattern(id)).filter(Boolean) as AnimationPattern[];
     
     return {
       compatible: true,
