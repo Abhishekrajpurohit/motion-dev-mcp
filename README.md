@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/abhishekrajpurohit-motion-dev-mcp-badge.png)](https://mseep.ai/app/abhishekrajpurohit-motion-dev-mcp)
+
 # Motion.dev MCP Server
 
 A production-ready Model Context Protocol (MCP) server providing comprehensive Motion.dev animation library access for React, JavaScript, and Vue. Features offline documentation, intelligent code generation, and multi-framework support.
