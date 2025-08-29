@@ -14,24 +14,31 @@ export class MotionDocService {
   private logger = Logger.getInstance();
   private turndown = new TurndownService();
   private db!: DatabaseAdapter;
+  private initialized = false;
+  private initializationPromise?: Promise<void>;
 
   constructor(fetcher?: DocumentationFetcher, _cache?: any, dbPath: string = 'docs/motion-docs.db') {
     this.fetcher = fetcher || new DocumentationFetcher();
     this.setupTurndown();
-    this.initializeDatabase(dbPath).catch(error => {
-      this.logger.error('Failed to initialize database in constructor', error as Error);
-    });
+    this.initializationPromise = this.initializeDatabase(dbPath);
   }
 
   private async initializeDatabase(dbPath: string): Promise<void> {
     try {
       this.db = await createDatabaseAdapter(dbPath);
       this.repository = new MotionRepository(this.db);
+      this.initialized = true;
       this.logger.info('Motion.dev documentation database initialized');
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error('Failed to initialize Motion.dev database', new Error(errorMessage));
       throw new Error(`Database initialization failed: ${errorMessage}`);
+    }
+  }
+
+  async ensureInitialized(): Promise<void> {
+    if (!this.initialized && this.initializationPromise) {
+      await this.initializationPromise;
     }
   }
 
@@ -520,7 +527,8 @@ animate(".spring",
   /**
    * Get database statistics
    */
-  getStatistics() {
+  async getStatistics() {
+    await this.ensureInitialized();
     return this.repository.getStatistics();
   }
 

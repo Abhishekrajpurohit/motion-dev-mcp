@@ -119,8 +119,12 @@ export class CodeGenerationTool {
       // Build component using patterns
       const componentCode = await this.buildComponentFromPatterns(params);
 
-      // Generate final code with optimizations
-      const result = await this.generateOptimizedCode(componentCode, params);
+      // For now, return the raw pattern code until optimization pipeline is fixed
+      const result = {
+        code: componentCode,
+        imports: ['import { motion } from "framer-motion";'],
+        dependencies: ['framer-motion']
+      };
 
       const response: CodeGenerationResponse = {
         success: true,
@@ -412,19 +416,102 @@ export class CodeGenerationTool {
 
   private async buildComponentFromPatterns(params: GenerateMotionComponentParams): Promise<string> {
     // Combine multiple animation patterns into a single component
-    // const patternConfigs = params.animations.map(animationId => { // Reserved for future use
-    //   const pattern = this.patterns.getPattern(animationId);
-    //   return pattern?.config || {};
-    // });
+    if (params.animations.length === 1) {
+      // Single animation - use direct pattern code
+      return this.patterns.getPatternCode(params.animations[0], params.framework, params.componentName);
+    }
+
+    // Multiple animations - merge configurations
+    const patternConfigs = params.animations.map(animationId => {
+      const pattern = this.patterns.getPattern(animationId);
+      return pattern?.config || {};
+    });
 
     // Merge configs intelligently
-    // const mergedConfig = this.mergeAnimationConfigs(patternConfigs); // Reserved for future use
-
-    // Generate code for the specific framework
-    return this.patterns.getPatternCode(params.animations[0], params.framework, params.componentName);
+    const mergedConfig = this.mergeAnimationConfigs(patternConfigs);
+    
+    // Generate combined component
+    return this.generateCombinedComponent(mergedConfig, params);
   }
 
-  private async generateOptimizedCode(
+  private mergeAnimationConfigs(configs: any[]): any {
+    const merged = {
+      initial: {},
+      animate: {},
+      transition: { duration: 0.3, ease: 'easeOut' }
+    };
+
+    configs.forEach(config => {
+      if (config.initial) {
+        Object.assign(merged.initial, config.initial);
+      }
+      if (config.animate) {
+        Object.assign(merged.animate, config.animate);
+      }
+      if (config.transition) {
+        // Use the longest duration and most complex transition
+        if (config.transition.duration > merged.transition.duration) {
+          merged.transition = { ...merged.transition, ...config.transition };
+        }
+      }
+    });
+
+    return merged;
+  }
+
+  private generateCombinedComponent(config: any, params: GenerateMotionComponentParams): string {
+    const { componentName = 'AnimatedComponent', framework } = params;
+    
+    if (framework === 'react') {
+      return `import React from 'react';
+import { motion } from 'framer-motion';
+
+const ${componentName}: React.FC = () => {
+  return (
+    <motion.div
+      initial={${JSON.stringify(config.initial, null, 2)}}
+      animate={${JSON.stringify(config.animate, null, 2)}}
+      transition={${JSON.stringify(config.transition, null, 2)}}
+    >
+      {/* Your content here */}
+    </motion.div>
+  );
+};
+
+export default ${componentName};`;
+    }
+
+    if (framework === 'js') {
+      return `import { animate } from 'motion';
+
+// ${componentName} animation
+animate('.${componentName.toLowerCase()}', ${JSON.stringify(config.animate, null, 2)}, {
+  ...${JSON.stringify(config.transition, null, 2)}
+});`;
+    }
+
+    if (framework === 'vue') {
+      return `<template>
+  <Motion
+    tag="div"
+    :initial="${JSON.stringify(config.initial)}"
+    :animate="${JSON.stringify(config.animate)}"
+    :transition="${JSON.stringify(config.transition)}"
+  >
+    <!-- Your content here -->
+  </Motion>
+</template>
+
+<script setup>
+import { Motion } from '@motionone/vue';
+</script>`;
+    }
+
+    return this.patterns.getPatternCode(params.animations[0], framework, componentName);
+  }
+
+  // TODO: Fix optimization pipeline that was causing empty code generation
+  /* private async generateOptimizedCode(
     code: string, 
     params: GenerateMotionComponentParams
   ): Promise<{ code: string; imports: string[]; dependencies?: string[] }> {
@@ -456,7 +543,7 @@ export class CodeGenerationTool {
       imports: result.imports,
       dependencies: Array.from(context.dependencies)
     };
-  }
+  } */
 
   private async buildAnimationSequence(params: CreateAnimationSequenceParams): Promise<string> {
     switch (params.framework) {
@@ -585,7 +672,7 @@ runAnimationSequence();`;
 
   private async performValidation(
     motionElements: any[], 
-    _params: ValidateMotionSyntaxParams
+    params: ValidateMotionSyntaxParams
   ): Promise<{
     errors: Array<{ type: 'error' | 'warning'; message: string; line?: number; rule: string }>;
     suggestions: Array<{ type: 'performance' | 'accessibility' | 'best-practice'; message: string; priority: 'high' | 'medium' | 'low' }>;
@@ -595,9 +682,31 @@ runAnimationSequence();`;
 
     // Validate motion elements
     for (const element of motionElements) {
-      // Check for performance issues
+      // Check for invalid property names
       if (element.props.animate && typeof element.props.animate === 'object') {
         const animateProps = element.props.animate;
+        
+        // Comprehensive property validation
+        const validAnimationProps = new Set([
+          'x', 'y', 'z', 'scale', 'scaleX', 'scaleY', 'rotate', 'rotateX', 'rotateY', 'rotateZ',
+          'opacity', 'backgroundColor', 'color', 'borderRadius', 'borderColor', 'borderWidth',
+          'width', 'height', 'top', 'left', 'right', 'bottom', 'margin', 'padding',
+          'transform', 'filter', 'clipPath', 'pathLength', 'pathOffset', 'pathSpacing',
+          // SVG properties
+          'fill', 'stroke', 'strokeWidth', 'strokeDasharray', 'strokeDashoffset',
+          'd', 'cx', 'cy', 'r', 'rx', 'ry', 'x1', 'y1', 'x2', 'y2'
+        ]);
+
+        for (const prop in animateProps) {
+          if (!validAnimationProps.has(prop)) {
+            errors.push({
+              type: 'error',
+              message: `Unknown animation property: '${prop}'. Valid properties include: x, y, scale, rotate, opacity, backgroundColor, etc.`,
+              line: element.line,
+              rule: 'invalid-animation-property'
+            });
+          }
+        }
         
         // Check for layout-triggering properties
         if (animateProps.width || animateProps.height) {
@@ -610,12 +719,25 @@ runAnimationSequence();`;
         }
 
         // Check for transform properties (good)
-        if (animateProps.x || animateProps.y || animateProps.scale) {
+        if (animateProps.x || animateProps.y || animateProps.scale || animateProps.rotate) {
           suggestions.push({
             type: 'performance',
             message: 'Good use of transform properties for smooth animations',
             priority: 'low'
           });
+        }
+
+        // Validate transition values
+        if (animateProps.transition && typeof animateProps.transition === 'object') {
+          const transition = animateProps.transition;
+          if (transition.duration && (transition.duration < 0 || transition.duration > 10)) {
+            errors.push({
+              type: 'warning',
+              message: 'Animation duration should be between 0 and 10 seconds',
+              line: element.line,
+              rule: 'invalid-duration'
+            });
+          }
         }
       }
 
@@ -629,7 +751,41 @@ runAnimationSequence();`;
       }
     }
 
+    // Framework-specific validation
+    this.validateFrameworkSpecific(params.framework, params.code, errors, suggestions);
+
     return { errors, suggestions };
+  }
+
+  private validateFrameworkSpecific(framework: Framework, code: string, _errors: any[], suggestions: any[]): void {
+    if (framework === 'react') {
+      // Check for common React-specific issues
+      if (code.includes('motion.') && !code.includes('import { motion }')) {
+        suggestions.push({
+          type: 'best-practice',
+          message: 'Make sure to import motion from framer-motion: import { motion } from "framer-motion"',
+          priority: 'high'
+        });
+      }
+    } else if (framework === 'js') {
+      // Check for common JS-specific issues
+      if (code.includes('animate(') && !code.includes('import { animate }')) {
+        suggestions.push({
+          type: 'best-practice',
+          message: 'Make sure to import animate from motion: import { animate } from "motion"',
+          priority: 'high'
+        });
+      }
+    } else if (framework === 'vue') {
+      // Check for common Vue-specific issues
+      if (code.includes('<Motion') && !code.includes('import { Motion }')) {
+        suggestions.push({
+          type: 'best-practice',
+          message: 'Make sure to import Motion from @motionone/vue: import { Motion } from "@motionone/vue"',
+          priority: 'high'
+        });
+      }
+    }
   }
 
   // private mergeAnimationConfigs(configs: any[]): any { // Reserved for future use

@@ -25,8 +25,11 @@ export class ASTParser {
         codeLength: code.length 
       });
 
+      // Clean the code before parsing to handle potential encoding issues
+      const cleanCode = code.replace(/[\u0000-\u001F\u007F-\u009F]/g, '');
+
       const parserOptions = this.getParserOptions(options);
-      const ast = parse(code, parserOptions);
+      const ast = parse(cleanCode, parserOptions);
 
       const componentAST: ComponentAST = {
         framework: options.framework,

@@ -165,7 +165,7 @@ export class DocumentationTool {
 
   async getDatabaseStatistics() {
     try {
-      return this.docService.getStatistics();
+      return await this.docService.getStatistics();
     } catch (error) {
       this.logger.error('Failed to get database statistics', error as Error);
       return {

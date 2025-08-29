@@ -98,6 +98,44 @@ export class AnimationPatterns {
       }
     });
 
+    this.addPattern({
+      id: 'scale',
+      name: 'Scale',
+      description: 'Simple scale animation for elements',
+      category: 'entrance',
+      complexity: 'basic',
+      frameworks: ['react', 'js', 'vue'],
+      tags: ['scale', 'transform', 'basic'],
+      config: {
+        initial: { scale: 0.8 },
+        animate: { scale: 1 },
+        transition: { duration: 0.3, ease: 'easeOut' }
+      },
+      usage: {
+        props: ['initial', 'animate', 'transition'],
+        dependencies: []
+      }
+    });
+
+    this.addPattern({
+      id: 'rotate',
+      name: 'Rotate',
+      description: 'Simple rotation animation for elements',
+      category: 'entrance',
+      complexity: 'basic',
+      frameworks: ['react', 'js', 'vue'],
+      tags: ['rotate', 'transform', 'basic'],
+      config: {
+        initial: { rotate: -10 },
+        animate: { rotate: 0 },
+        transition: { duration: 0.4, ease: 'easeOut' }
+      },
+      usage: {
+        props: ['initial', 'animate', 'transition'],
+        dependencies: []
+      }
+    });
+
     // Exit Animations
     this.addPattern({
       id: 'fade-out',

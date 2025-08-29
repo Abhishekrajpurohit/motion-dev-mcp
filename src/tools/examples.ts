@@ -290,7 +290,7 @@ export class ExamplesTool {
     topTags: Array<{ tag: string; count: number }>;
   }> {
     try {
-      const dbStats = this.docService.getStatistics();
+      const dbStats = await this.docService.getStatistics();
       
       // Get all examples for detailed stats
       const allExamples = await this.docService.searchExamples('', { limit: 1000 });

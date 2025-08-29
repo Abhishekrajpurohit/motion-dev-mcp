@@ -250,7 +250,26 @@ export class MotionDocumentationFetcher {
   }
 
   private extractMainContent($: cheerio.CheerioAPI): string {
-    // Try various main content selectors
+    // Motion.dev specific content selectors - try these first
+    const motionSelectors = [
+      '[data-framer-name="Content"]',
+      '.framer-content',
+      '.documentation-content',
+      '.docs-main',
+      'div[class*="content"]',
+      'div[class*="docs"]'
+    ];
+
+    // Try Motion.dev specific selectors first
+    for (const selector of motionSelectors) {
+      const element = $(selector).first();
+      if (element.length && element.text().trim().length > 100) {
+        this.logger.debug(`Found content with selector: ${selector}`);
+        return element.html() || '';
+      }
+    }
+
+    // Standard content selectors
     const contentSelectors = [
       'main',
       '.content',
@@ -263,12 +282,30 @@ export class MotionDocumentationFetcher {
 
     for (const selector of contentSelectors) {
       const element = $(selector).first();
-      if (element.length && element.html()) {
+      if (element.length && element.text().trim().length > 100) {
+        this.logger.debug(`Found content with selector: ${selector}`);
         return element.html() || '';
       }
     }
 
-    // Fallback to body content
+    // If no good content found, try finding the largest text block
+    let bestElement = '';
+    let maxTextLength = 0;
+    
+    $('div, section, article').each((_, element) => {
+      const textContent = $(element).text().trim();
+      if (textContent.length > maxTextLength && textContent.length > 200) {
+        maxTextLength = textContent.length;
+        bestElement = $(element).html() || '';
+      }
+    });
+
+    if (bestElement) {
+      this.logger.debug(`Found best content block with ${maxTextLength} characters`);
+      return bestElement;
+    }
+
+    // Final fallback to body content
     const body = $('body').html();
     return body || '';
   }
@@ -284,21 +321,29 @@ export class MotionDocumentationFetcher {
       motionComponents.forEach(name => componentNames.add(name));
     });
 
-    // Look for components in code examples
+    // Look for components in code examples and all text content
+    const allTextContent = $('body').text();
+    const motionComponents = this.findComponentNames(allTextContent);
+    motionComponents.forEach(name => componentNames.add(name));
+
+    // Look for components in code examples specifically
     $('code, pre code').each((_, element) => {
       const code = $(element).text();
-      const motionComponents = this.findComponentNames(code);
-      motionComponents.forEach(name => componentNames.add(name));
+      const codeComponents = this.findComponentNames(code);
+      codeComponents.forEach(name => componentNames.add(name));
     });
 
-    // Create component entries
+    // Create component entries with enhanced descriptions
     componentNames.forEach(name => {
       if (name && name.length > 2) {
+        const componentType = this.getComponentType(name, framework);
+        const description = this.getComponentDescription(name, framework);
+        
         components.push({
           name,
           framework,
-          type: name.startsWith('motion.') ? 'component' : 'function',
-          description: `Motion.dev ${name} ${name.startsWith('motion.') ? 'component' : 'function'}`
+          type: componentType,
+          description
         });
       }
     });
@@ -306,31 +351,86 @@ export class MotionDocumentationFetcher {
     return components;
   }
 
+  private getComponentType(name: string, _framework: string): 'component' | 'function' | 'hook' | 'utility' {
+    if (name.startsWith('motion.')) return 'component';
+    if (name.startsWith('use')) return 'hook';
+    if (['animate', 'spring', 'scroll', 'timeline', 'stagger', 'glide', 'hover', 'inView', 'press', 'resize', 'transform'].includes(name)) {
+      return 'function';
+    }
+    if (['Motion', 'AnimatePresence', 'Transition'].includes(name)) return 'component';
+    return 'utility';
+  }
+
+  private getComponentDescription(name: string, framework: string): string {
+    const descriptions: Record<string, string> = {
+      'motion.div': 'Animated div element with Motion.dev capabilities',
+      'motion.button': 'Animated button element with gesture support',
+      'motion.span': 'Animated span element for inline animations',
+      'motion.img': 'Animated image element with loading animations',
+      'motion.svg': 'Animated SVG element for vector animations',
+      'animate': 'Core animation function for element animations',
+      'spring': 'Spring-based animation generator',
+      'scroll': 'Scroll-linked animation functions',
+      'timeline': 'Animation timeline and sequencing',
+      'stagger': 'Staggered animation utilities',
+      'hover': 'Hover gesture animation functions',
+      'inView': 'Viewport-based animation triggers',
+      'press': 'Press gesture animation handlers',
+      'useScroll': 'React hook for scroll-based animations',
+      'useTransform': 'React hook for value transformations',
+      'useSpring': 'React hook for spring animations',
+      'motionValue': 'Reactive value for animations',
+      'AnimatePresence': 'React component for exit animations',
+      'Motion': 'Vue Motion component wrapper'
+    };
+
+    return descriptions[name] || `Motion.dev ${name} ${this.getComponentType(name, framework)}`;
+  }
+
   private extractExamples($: cheerio.CheerioAPI, framework: 'react' | 'js' | 'vue'): any[] {
     const examples: any[] = [];
+    const seenCodes = new Set<string>();
 
-    $('pre code, .code-block code').each((i, element) => {
-      const code = $(element).text().trim();
-      
-      if (code && code.length > 20) { // Filter out very short snippets
-        const language = $(element).attr('class')?.replace('language-', '') || framework;
+    // More comprehensive code block selectors
+    const codeSelectors = [
+      'pre code',
+      'code[class*="language"]',
+      '.code-block code',
+      '.highlight code',
+      'pre',
+      'div[class*="code"] code',
+      'div[class*="example"] code',
+      '.example pre',
+      '.code-example code'
+    ];
+
+    codeSelectors.forEach(selector => {
+      $(selector).each((i, element) => {
+        let code = $(element).text().trim();
+        
+        // Skip if no code or too short or already seen
+        if (!code || code.length < 10 || seenCodes.has(code)) {
+          return;
+        }
+        
+        seenCodes.add(code);
+        
+        // Filter for Motion.dev relevant code
+        const isMotionCode = this.isMotionRelevantCode(code, framework);
+        if (!isMotionCode) {
+          return;
+        }
+        
+        const language = this.detectCodeLanguage($(element), framework);
         
         // Try to find a title from nearby heading or text
-        let title = `Example ${i + 1}`;
-        let description = '';
+        let title = this.findNearbyTitle($, element, i + 1);
+        let description = this.findNearbyDescription($, element);
         
-        const nearbyHeading = $(element).closest('div, section').prevAll('h1, h2, h3, h4, h5, h6').first();
-        if (nearbyHeading.length) {
-          title = nearbyHeading.text().trim() || title;
-        }
-
-        const nearbyP = $(element).closest('pre').prev('p');
-        if (nearbyP.length) {
-          description = nearbyP.text().trim();
-        }
-
         // Determine difficulty based on code complexity
         const difficulty = this.determineDifficulty(code);
+        
+        this.logger.debug(`Found example: ${title} (${code.length} chars)`);
         
         examples.push({
           title,
@@ -340,9 +440,10 @@ export class MotionDocumentationFetcher {
           difficulty,
           tags: this.extractCodeTags(code, framework)
         });
-      }
+      });
     });
 
+    this.logger.debug(`Extracted ${examples.length} examples for ${framework}`);
     return examples;
   }
 
@@ -395,8 +496,8 @@ export class MotionDocumentationFetcher {
     // Motion.dev specific patterns
     const patterns = [
       /motion\.\w+/g,              // motion.div, motion.button, etc.
-      /\b(animate|spring|scroll|timeline|stagger|glide)\b/g,  // JS functions
-      /\b(Motion|Transition|AnimatePresence)\b/g,             // Vue/React components
+      /\b(animate|animateView|spring|scroll|timeline|stagger|glide|hover|inView|press|resize|transform)\b/g,  // JS functions
+      /\b(Motion|Transition|AnimatePresence|useMotion|useScroll|useTransform|useSpring|motionValue)\b/g,             // Vue/React components and hooks
     ];
 
     patterns.forEach(pattern => {
@@ -406,6 +507,20 @@ export class MotionDocumentationFetcher {
           if (match.length > 2) {
             names.push(match.trim());
           }
+        });
+      }
+    });
+
+    // Also look for common Motion.dev HTML elements used with motion.*
+    const motionElementPatterns = [
+      /motion\.(div|span|button|a|img|svg|path|circle|rect|line|g|text|tspan)/g
+    ];
+
+    motionElementPatterns.forEach(pattern => {
+      const matches = text.match(pattern);
+      if (matches) {
+        matches.forEach(match => {
+          names.push(match.trim());
         });
       }
     });
@@ -473,5 +588,112 @@ export class MotionDocumentationFetcher {
     });
 
     return [...new Set(tags)]; // Remove duplicates
+  }
+
+  private isMotionRelevantCode(code: string, framework: string): boolean {
+    const motionKeywords = [
+      'motion', 'animate', 'spring', 'scroll', 'transition',
+      'gesture', 'drag', 'layout', 'keyframes', 'stagger',
+      'hover', 'inView', 'press', 'resize', 'transform'
+    ];
+
+    const codeLower = code.toLowerCase();
+    
+    // Must contain at least one Motion.dev keyword
+    const hasMotionKeyword = motionKeywords.some(keyword => 
+      codeLower.includes(keyword)
+    );
+    
+    // Additional framework-specific checks
+    if (framework === 'react' && codeLower.includes('motion.')) return true;
+    if (framework === 'js' && codeLower.includes('animate(')) return true;
+    if (framework === 'vue' && codeLower.includes('motion')) return true;
+    
+    return hasMotionKeyword;
+  }
+
+  private detectCodeLanguage(element: cheerio.Cheerio<any>, framework: string): string {
+    const classList = element.attr('class') || '';
+    
+    // Check for language- prefixed classes
+    const langMatch = classList.match(/language-(\w+)/);
+    if (langMatch) {
+      return langMatch[1];
+    }
+    
+    // Check parent elements for language hints
+    const pre = element.closest('pre');
+    if (pre.length) {
+      const preClass = pre.attr('class') || '';
+      const preLangMatch = preClass.match(/language-(\w+)/);
+      if (preLangMatch) {
+        return preLangMatch[1];
+      }
+    }
+    
+    // Fallback to framework
+    return framework === 'js' ? 'javascript' : framework;
+  }
+
+  private findNearbyTitle($: cheerio.CheerioAPI, element: any, fallbackNum: number): string {
+    const el = $(element);
+    
+    // Look for headings before this code block
+    const headingSelectors = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
+    
+    for (const selector of headingSelectors) {
+      // Check siblings before
+      const prevHeading = el.closest('div, section, article').prevAll(selector).first();
+      if (prevHeading.length) {
+        const title = prevHeading.text().trim();
+        if (title && title.length < 100) {
+          return title;
+        }
+      }
+      
+      // Check within same container
+      const nearbyHeading = el.closest('div, section, article').find(selector).first();
+      if (nearbyHeading.length) {
+        const title = nearbyHeading.text().trim();
+        if (title && title.length < 100) {
+          return title;
+        }
+      }
+    }
+    
+    // Look for strong/bold text near the code
+    const strongText = el.closest('div').prev().find('strong, b').first();
+    if (strongText.length) {
+      const title = strongText.text().trim();
+      if (title && title.length < 50) {
+        return title;
+      }
+    }
+    
+    return `Code Example ${fallbackNum}`;
+  }
+
+  private findNearbyDescription($: cheerio.CheerioAPI, element: any): string {
+    const el = $(element);
+    
+    // Look for paragraph before the code block
+    const prevP = el.closest('pre, div').prev('p');
+    if (prevP.length) {
+      const desc = prevP.text().trim();
+      if (desc && desc.length > 10 && desc.length < 300) {
+        return desc;
+      }
+    }
+    
+    // Look for paragraph after the code block
+    const nextP = el.closest('pre, div').next('p');
+    if (nextP.length) {
+      const desc = nextP.text().trim();
+      if (desc && desc.length > 10 && desc.length < 300) {
+        return desc;
+      }
+    }
+    
+    return '';
   }
 }

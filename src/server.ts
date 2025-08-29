@@ -14,7 +14,6 @@ import {
 
 import { MotionDocService } from './services/motion-doc-service.js';
 import { DocumentationTool } from './tools/documentation.js';
-import { SearchTool } from './tools/search.js';
 import { ExamplesTool } from './tools/examples.js';
 import { ApiTool } from './tools/api.js';
 import { CodeGenerationTool } from './tools/generation.js';
@@ -39,7 +38,6 @@ export class MotionMCPServer {
 
   // Tools
   private documentationTool: DocumentationTool;
-  private searchTool: SearchTool;
   private examplesTool: ExamplesTool;
   private apiTool: ApiTool;
   private codeGenerationTool: CodeGenerationTool;
@@ -72,7 +70,6 @@ export class MotionMCPServer {
 
     // Initialize tools with doc service
     this.documentationTool = new DocumentationTool(this.docService);
-    this.searchTool = new SearchTool();
     this.examplesTool = new ExamplesTool(this.docService);
     this.apiTool = new ApiTool(this.docService);
     this.codeGenerationTool = new CodeGenerationTool();
@@ -460,12 +457,25 @@ export class MotionMCPServer {
 
   private async handleSearchMotionDocs(args: any) {
     const params = validateSearchMotionDocsParams(args);
-    const response = await this.searchTool.searchMotionDocs(params);
+    const response = await this.documentationTool.searchMotionDocs(params);
+    
+    // Format response to match expected search format
+    const searchResponse = {
+      success: response.success,
+      results: response.documents || [],
+      totalFound: response.totalFound || 0,
+      searchTime: response.queryTime || 0,
+      query: params.query || '',
+      filters: {
+        framework: params.framework,
+        category: params.category
+      }
+    };
     
     return {
       content: [{
         type: 'text',
-        text: JSON.stringify(response, null, 2)
+        text: JSON.stringify(searchResponse, null, 2)
       }]
     };
   }
@@ -630,7 +640,7 @@ export class MotionMCPServer {
       await this.server.connect(transport);
       
       // Get database statistics for logging
-      const stats = this.docService.getStatistics();
+      const stats = await this.docService.getStatistics();
       logger.info('Motion.dev MCP Server initialized successfully', stats);
 
     } catch (error) {
@@ -659,7 +669,7 @@ export class MotionMCPServer {
     
     try {
       // Check if database has content, populate if empty
-      const stats = this.docService.getStatistics();
+      const stats = await this.docService.getStatistics();
       
       if (stats.totalDocs === 0) {
         this.logger.info('Database is empty, populating with Motion.dev documentation...');

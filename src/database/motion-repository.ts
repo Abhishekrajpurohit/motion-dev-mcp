@@ -215,7 +215,7 @@ export class MotionRepository {
       sql = `
         SELECT d.* FROM motion_docs d
         JOIN motion_docs_fts fts ON d.id = fts.rowid
-        WHERE fts MATCH ?
+        WHERE motion_docs_fts MATCH ?
       `;
       params.push(query);
     } else {
@@ -357,14 +357,19 @@ export class MotionRepository {
     let sql: string;
     let params: any[] = [];
 
-    if (this.hasFTS5 && query.trim()) {
+    // Check if query contains FTS5 special characters
+    const hasFTSSpecialChars = /[.()&|"*:]/.test(query);
+    
+    if (this.hasFTS5 && query.trim() && !hasFTSSpecialChars) {
+      // Use FTS5 for clean queries
       sql = `
         SELECT e.* FROM motion_examples e
         JOIN motion_examples_fts fts ON e.id = fts.rowid
-        WHERE fts MATCH ?
+        WHERE motion_examples_fts MATCH ?
       `;
       params.push(query);
     } else {
+      // Fall back to LIKE for special characters or when FTS5 is not available
       sql = `
         SELECT * FROM motion_examples
         WHERE (title LIKE ? OR description LIKE ? OR code LIKE ?)
