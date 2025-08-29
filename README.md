@@ -6,13 +6,14 @@ A production-ready Model Context Protocol (MCP) server providing comprehensive M
 
 ### Prerequisites
 - **Node.js 18+** - Required runtime
-- **Claude Code** - MCP client for AI assistant integration
+- **MCP-compatible client** - Any AI client supporting Model Context Protocol
 
 ### Installation & Setup
 
 ```bash
-# Clone and navigate to project
-cd /Users/abhishekrajpurohit/claudeui/mcp/motion-dev-mcp
+# Clone the repository
+git clone https://github.com/your-username/motion-dev-mcp.git
+cd motion-dev-mcp
 
 # Install dependencies
 npm install
@@ -24,24 +25,24 @@ npm run build
 npm run rebuild
 ```
 
-### Claude Code Integration
+### MCP Client Integration
 
-**Add MCP Server:**
-```bash
-claude mcp add /Users/abhishekrajpurohit/claudeui/mcp/motion-dev-mcp
-```
-
-**Or manually configure in `~/.config/claude-code/mcp_servers.json`:**
+**Configure in your MCP client settings:**
 ```json
 {
   "mcpServers": {
     "motion-dev": {
       "command": "node",
       "args": ["./dist/index.js"],
-      "cwd": "/Users/abhishekrajpurohit/claudeui/mcp/motion-dev-mcp"
+      "cwd": "$HOME/motion-dev-mcp"
     }
   }
 }
+```
+
+**Or using Claude Code CLI:**
+```bash
+claude mcp add $HOME/motion-dev-mcp
 ```
 
 ## ✨ Features
@@ -189,11 +190,11 @@ sqlite3 docs/motion-docs.db "SELECT COUNT(*) FROM motion_examples;"
 
 ## 🎯 Integration Benefits
 
-Perfect for ClaudeUI project agents:
-- **Visual Design Agent**: Generate animations from design specifications
-- **Component Assembly Agent**: Compose animated components from natural language
-- **Full-Stack UI Agent**: Complete application animation implementation
-- **Mobile-First Agent**: Touch gestures and responsive animations
+Perfect for AI-powered development workflows:
+- **Design-to-Code**: Generate animations from design specifications
+- **Natural Language**: Compose animated components from descriptions
+- **Full-Stack Development**: Complete application animation implementation
+- **Cross-Platform**: Touch gestures and responsive animations
 
 ## 📈 Performance Metrics
 
@@ -216,4 +217,4 @@ Perfect for ClaudeUI project agents:
 
 ---
 
-**Ready to Use**: Run `claude mcp add /Users/abhishekrajpurohit/claudeui/mcp/motion-dev-mcp` to start using Motion.dev animations in your AI-assisted development workflow.
+*Transform your animations with AI-powered Motion.dev integration through any MCP-compatible client.*
