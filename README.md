@@ -42,7 +42,7 @@ npm run rebuild
 
 **Or using Claude Code CLI:**
 ```bash
-claude mcp add $HOME/motion-dev-mcp
+claude mcp add node $HOME/motion-dev-mcp/dist/index.js
 ```
 
 ## ✨ Features
